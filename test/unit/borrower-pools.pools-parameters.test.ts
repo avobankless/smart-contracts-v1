@@ -6,13 +6,13 @@ import {parseEther} from '@ethersproject/units';
 
 import {BorrowerPools} from '../../typechain';
 import {setupFixture} from '../utils';
+import {poolHash} from '../utils/constants';
 import {PoolFeeRates, PoolParameters, User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
-import {poolHash} from '../utils/constants';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Parameters', function () {

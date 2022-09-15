@@ -4,23 +4,23 @@ import {deployments, ethers} from 'hardhat';
 import {MockContract} from '@ethereum-waffle/mock-contract';
 import {parseEther} from '@ethersproject/units';
 
+import {defaultAbiCoder, keccak256} from 'ethers/lib/utils';
 import {FlashLoanAttacker, PositionDescriptor} from '../../typechain';
 import {setupFixture, setupUser} from '../utils';
 import {
   borrowerName,
-  poolHash,
   FIRST_BOND_ISSUANCE_INDEX,
   FIRST_TOKEN_ID,
   NEXT_BOND_ISSUANCE_INDEX,
   ONE_HOUR,
+  poolHash,
   WAD,
 } from '../utils/constants';
 import {User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
-import {keccak256, defaultAbiCoder} from 'ethers/lib/utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('PositionManager');
+  return setupFixture('All');
 });
 
 describe('Position - All methods', () => {

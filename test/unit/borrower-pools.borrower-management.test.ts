@@ -4,29 +4,29 @@ import {deployments} from 'hardhat';
 import {defaultAbiCoder} from '@ethersproject/abi';
 import {keccak256} from '@ethersproject/keccak256';
 
+import {parseEther} from 'ethers/lib/utils';
 import {setupFixture} from '../utils';
 import {
-  poolHash,
   cooldownPeriod,
   distributionRate,
+  establishmentFeeRate,
   lateRepayFeePerBondRate,
-  repaymentPeriod,
-  loanDuration,
   liquidityRewardsActivationThreshold,
+  loanDuration,
   maxBorrowableAmount,
   maxRateInput,
   minRateInput,
-  repaymentFeeRate,
+  poolHash,
   rateSpacingInput,
-  establishmentFeeRate,
+  repaymentFeeRate,
+  repaymentPeriod,
 } from '../utils/constants';
 import {User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
-import {parseEther} from 'ethers/lib/utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Governance functions', function () {

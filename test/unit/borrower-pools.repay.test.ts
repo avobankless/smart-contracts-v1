@@ -1,6 +1,6 @@
 import {MockContract} from 'ethereum-waffle';
 import {BigNumber} from 'ethers';
-import {keccak256, defaultAbiCoder, parseEther} from 'ethers/lib/utils';
+import {defaultAbiCoder, keccak256, parseEther} from 'ethers/lib/utils';
 import {deployments, ethers} from 'hardhat';
 
 import {BorrowerPools} from '../../typechain';
@@ -13,28 +13,28 @@ import {
   setupFixture,
 } from '../utils';
 import {
-  poolHash,
   distributionRate,
+  establishmentFeeRate,
   FIRST_BOND_ISSUANCE_INDEX,
   lateRepayFeePerBondRate,
   liquidityRewardsActivationThreshold,
   maxRateInput,
   minRateInput,
-  repaymentFeeRate,
   NEXT_BOND_ISSUANCE_INDEX,
+  poolHash,
   rateSpacingInput,
   RAY,
+  repaymentFeeRate,
+  secondsPerYear,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
-  secondsPerYear,
-  establishmentFeeRate,
 } from '../utils/constants';
 import {PoolParameters, User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Repay', function () {

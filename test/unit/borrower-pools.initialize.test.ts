@@ -6,7 +6,7 @@ import {GOVERNANCE_ROLE} from '../utils/constants';
 import {Deployer, User} from '../utils/types';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Initialize', function () {

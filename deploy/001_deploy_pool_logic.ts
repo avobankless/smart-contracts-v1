@@ -24,3 +24,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log('PoolLogic library: ' + PoolLogic.address);
 };
 export default func;
+func.tags = ['All', 'PoolLogic'];

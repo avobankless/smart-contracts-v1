@@ -4,20 +4,20 @@ import {setupUser} from '../../utils';
 import {
   cooldownPeriod,
   distributionRate,
+  establishmentFeeRate,
+  GOVERNANCE_ROLE,
   lateRepayFeePerBondRate,
-  repaymentPeriod,
+  liquidityRewardsActivationThreshold,
   loanDuration,
   maxBorrowableAmount,
   maxRateInput,
   minRateInput,
-  rateSpacingInput,
-  liquidityRewardsActivationThreshold,
   poolHash,
-  TEST_RETURN_YIELD_PROVIDER_LR_RAY,
-  establishmentFeeRate,
-  repaymentFeeRate,
   POSITION_ROLE,
-  GOVERNANCE_ROLE,
+  rateSpacingInput,
+  repaymentFeeRate,
+  repaymentPeriod,
+  TEST_RETURN_YIELD_PROVIDER_LR_RAY,
 } from '../../utils/constants';
 import {Deployer, Mocks, User} from '../../utils/types';
 
@@ -40,6 +40,7 @@ export const setupTestContracts = async (
   poolTokenAddress: string;
   otherTokenAddress: string;
 }> => {
+  console.log('running setupTestContracts');
   const deployedPositionManagerDescriptor =
     await deployer.PositionDescriptorF.deploy();
   const deployedBorrowerPools = await deployer.BorrowerPoolsF.deploy();

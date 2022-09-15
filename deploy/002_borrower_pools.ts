@@ -2,7 +2,7 @@ import debugModule from 'debug';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
 
-import {PoolLogic, BorrowerPools} from '../typechain';
+import {BorrowerPools, PoolLogic} from '../typechain';
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const log = debugModule('deploy-setup');
@@ -49,3 +49,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log('BorrowerPools proxy address: ' + BorrowerPoolsDeployer.address);
 };
 export default func;
+func.tags = ['All', 'BorrowerPools'];

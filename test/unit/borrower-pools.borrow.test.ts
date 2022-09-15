@@ -22,7 +22,7 @@ import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Borrow', function () {
@@ -46,6 +46,7 @@ describe('Borrower Pools - Borrow', function () {
   let checkTickAmounts: any;
 
   beforeEach(async () => {
+    console.log('---HERE---');
     const {deployer, mocks, users} = await setup();
     const {
       deployedBorrowerPools,

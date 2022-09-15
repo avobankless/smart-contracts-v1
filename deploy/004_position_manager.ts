@@ -50,3 +50,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log('PositionManager proxy address: ' + PositionManagerDeployer.address);
 };
 export default func;
+func.tags = ['All', 'PositionManager'];

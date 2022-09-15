@@ -13,27 +13,27 @@ import {
   setupFixture,
 } from '../utils';
 import {
-  poolHash,
   borrowerName,
   cooldownPeriod,
   distributionRate,
+  establishmentFeeRate,
   lateRepayFeePerBondRate,
   maxRateInput,
   minRateInput,
-  repaymentFeeRate,
+  poolHash,
   rateSpacingInput,
   RAY,
+  repaymentFeeRate,
   repaymentPeriod,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
-  establishmentFeeRate,
 } from '../utils/constants';
 import {PoolParameters, PoolState, User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Fees', function () {

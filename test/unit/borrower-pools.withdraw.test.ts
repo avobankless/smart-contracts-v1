@@ -4,6 +4,7 @@ import {deployments, ethers} from 'hardhat';
 import {defaultAbiCoder} from '@ethersproject/abi';
 import {keccak256} from '@ethersproject/keccak256';
 
+import {MockContract} from 'ethereum-waffle';
 import {BorrowerPools} from '../../typechain';
 import {
   calcRealizedBondsQuantity,
@@ -14,9 +15,9 @@ import {
   setupFixture,
 } from '../utils';
 import {
-  poolHash,
   FIRST_BOND_ISSUANCE_INDEX,
   NEXT_BOND_ISSUANCE_INDEX,
+  poolHash,
   RAY,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
@@ -24,10 +25,9 @@ import {
 import {PoolParameters, User} from '../utils/types';
 import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
-import {MockContract} from 'ethereum-waffle';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Withdraw', function () {

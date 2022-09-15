@@ -18,7 +18,7 @@ import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Deposit', function () {

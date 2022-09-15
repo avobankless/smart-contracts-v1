@@ -10,6 +10,7 @@ import {
 
 import {deployMockContract} from '@ethereum-waffle/mock-contract';
 
+import {parseEther} from 'ethers/lib/utils';
 import {
   BorrowerPools,
   BorrowerPools__factory,
@@ -22,7 +23,6 @@ import {
 } from '../../typechain';
 import {secondsPerYear, WAD} from './constants';
 import {User} from './types';
-import {parseEther} from 'ethers/lib/utils';
 
 export async function setupUsers<
   T extends {[contractName: string]: Contract | ContractFactory}
@@ -98,6 +98,7 @@ export async function setupFixture(fixtureName: string) {
     ),
   };
 
+  console.log('----HERE2----');
   const users = await setupUsers(await getUnnamedAccounts(), contracts);
   return {
     ...contracts,

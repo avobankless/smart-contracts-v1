@@ -48,3 +48,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 func.id = 'setup';
 export default func;
+func.tags = ['All', 'setup'];

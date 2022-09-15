@@ -4,9 +4,9 @@ import {deployments} from 'hardhat';
 import {BorrowerPools} from '../../typechain';
 import {checkPoolUtil, checkTickUtil, setupFixture} from '../utils';
 import {
-  poolHash,
   FIRST_BOND_ISSUANCE_INDEX,
   NEXT_BOND_ISSUANCE_INDEX,
+  poolHash,
   WAD,
 } from '../utils/constants';
 import {PoolParameters, User} from '../utils/types';
@@ -14,7 +14,7 @@ import {expect} from './helpers/chai-setup';
 import {setupTestContracts} from './utils';
 
 const setup = deployments.createFixture(async () => {
-  return setupFixture('BorrowerPools');
+  return setupFixture('All');
 });
 
 describe('Borrower Pools - Update Rate', function () {
