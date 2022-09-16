@@ -15,13 +15,14 @@ import "./lib/Roles.sol";
 import "./lib/Types.sol";
 
 import "./interfaces/IPoolsController.sol";
-import "hardhat/console.sol";
 
 contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPoolsController {
   using PoolLogic for Types.Pool;
   using Scaling for uint128;
   using Uint128WadRayMath for uint128;
 
+// borrower address to pool hash
+  mapping(address => address) public borrowerAuthorizedPools;
   // interest rate pool. Each address can have only one pool
   mapping(address => Types.Pool) internal pools;
 
@@ -246,7 +247,7 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       params.yieldProvider.getReserveNormalizedIncome(address(params.underlyingToken))
     );
 
-
+    borrowerAuthorizedPools[msg.sender] = msg.sender;
     emit PoolCreated(params);
 
 
@@ -295,7 +296,10 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (pools[ownerAddress].parameters.OWNER!= ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    grantRole(Roles.BORROWER_ROLE, borrowerAddress);
+    if(borrowerAddress != pools[ownerAddress].parameters.OWNER){
+      revert Errors.PC_BORROWER_NOT_OWNER();
+    }
+    borrowerAuthorizedPools[borrowerAddress] = ownerAddress;
     emit BorrowerAllowed(borrowerAddress, ownerAddress);
   }
 
@@ -314,7 +318,11 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
+    if(borrowerAddress != pools[ownerAddress].parameters.OWNER){
+      revert Errors.PC_BORROWER_NOT_OWNER();
+    }
     revokeRole(Roles.BORROWER_ROLE, borrowerAddress);
+    delete borrowerAuthorizedPools[borrowerAddress];
     emit BorrowerDisallowed(borrowerAddress, ownerAddress);
   }
 

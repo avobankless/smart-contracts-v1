@@ -471,7 +471,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @param loanAmount The total amount of the loan
    **/
   function borrow(address to, uint128 loanAmount) external override whenNotPaused {
-    Types.Pool storage pool = pools[msg.sender];
+    Types.Pool storage pool = pools[borrowerAuthorizedPools[msg.sender]];
     if (pool.state.closed) {
       revert Errors.BP_POOL_CLOSED();
     }

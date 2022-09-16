@@ -25,6 +25,7 @@ library Errors {
   error BP_EARLY_REPAY_NOT_ACTIVATED(); // "The early repay feature is not activated for this pool";
 
   // PoolController
+  error PC_BORROWER_NOT_OWNER(); // "Borrower is not the owner of the pool";
   error PC_POOL_NOT_ACTIVE(); // "Pool not active"
   error PC_POOL_DEFAULTED(); // "Pool defaulted"
   error PC_POOL_ALREADY_SET_FOR_BORROWER(); // "Targeted borrower is already set for another pool";
