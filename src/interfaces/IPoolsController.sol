@@ -232,13 +232,6 @@ interface IPoolsController {
   function disallow(address borrowerAddress, address ownerAddress) external;
 
   /**
-   * @notice Flags the pool as closed
-   * @param ownerAddress The identifier of the pool to be closed
-   * @param to An address to which the remaining liquidity rewards will be sent
-   **/
-  function closePool(address ownerAddress, address to) external;
-
-  /**
    * @notice Flags the pool as defaulted
    * @param ownerAddress The identifier of the pool to default
    **/

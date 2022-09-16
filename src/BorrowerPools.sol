@@ -287,9 +287,6 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     if (!pool.state.active) {
       revert Errors.BP_POOL_NOT_ACTIVE();
     }
-    if (pool.state.closed) {
-      revert Errors.BP_POOL_CLOSED();
-    }
     if (underlyingToken != pool.parameters.UNDERLYING_TOKEN) {
       revert Errors.BP_UNMATCHED_TOKEN();
     }
@@ -437,7 +434,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     Types.Pool storage pool = pools[ownerAddress];
 
     if (pool.state.closed) {
-      revert Errors.BP_POOL_CLOSED();
+      revert Errors.BP_POOL_DEFAULTED();
     }
     // cannot update rate when being borrowed
     (uint128 bondsQuantity, ) = getAmountRepartition(ownerAddress, oldRate, adjustedAmount, oldBondsIssuanceIndex);
@@ -472,9 +469,6 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    **/
   function borrow(address to, uint128 loanAmount) external override whenNotPaused {
     Types.Pool storage pool = pools[borrowerAuthorizedPools[msg.sender]];
-    if (pool.state.closed) {
-      revert Errors.BP_POOL_CLOSED();
-    }
     if (pool.state.defaulted) {
       revert Errors.BP_POOL_DEFAULTED();
     }
@@ -535,10 +529,8 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    **/
   function repay() external override whenNotPaused onlyRole(Roles.BORROWER_ROLE) {
     Types.Pool storage pool = pools[msg.sender];
-    if (pool.state.defaulted) {
-      revert Errors.BP_POOL_DEFAULTED();
-    }
-    if (pool.state.currentMaturity == 0) {
+    
+    if (pool.state.currentMaturity == 0 && pool.state.defaulted != true) {
       revert Errors.BP_REPAY_NO_ACTIVE_LOAN();
     }
     bool earlyRepay = pool.state.currentMaturity > block.timestamp;

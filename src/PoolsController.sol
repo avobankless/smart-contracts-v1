@@ -327,45 +327,6 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
   }
 
   /**
-   * @notice Flags the pool as closed
-   * @param ownerAddress The identifier of the pool
-   **/
-  function closePool(address ownerAddress, address to) external onlyRole(Roles.GOVERNANCE_ROLE) {
-    if (ownerAddress == address(0)) {
-      revert Errors.PC_ZERO_POOL();
-    }
-    if (to == address(0)) {
-      revert Errors.PC_ZERO_ADDRESS();
-    }
-    Types.Pool storage pool = pools[ownerAddress];
-    if (pool.parameters.OWNER != ownerAddress) {
-      revert Errors.PC_POOL_NOT_ACTIVE();
-    }
-    if (pool.state.closed) {
-      revert Errors.PC_POOL_ALREADY_CLOSED();
-    }
-    pool.state.closed = true;
-
-    uint128 remainingNormalizedLiquidityRewardsReserve = 0;
-    if (pool.state.remainingAdjustedLiquidityRewardsReserve > 0) {
-      uint128 yieldProviderLiquidityRatio = uint128(
-        pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
-      );
-      remainingNormalizedLiquidityRewardsReserve = pool.state.remainingAdjustedLiquidityRewardsReserve.wadRayMul(
-        yieldProviderLiquidityRatio
-      );
-
-      pool.state.remainingAdjustedLiquidityRewardsReserve = 0;
-      pool.parameters.YIELD_PROVIDER.withdraw(
-        pools[ownerAddress].parameters.UNDERLYING_TOKEN,
-        remainingNormalizedLiquidityRewardsReserve.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
-        to
-      );
-    }
-    emit PoolClosed(ownerAddress, remainingNormalizedLiquidityRewardsReserve);
-  }
-
-  /**
    * @notice Flags the pool as defaulted
    * @param ownerAddress The identifier of the pool to default
    **/
@@ -385,6 +346,23 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     pool.state.defaultTimestamp = uint128(block.timestamp);
     uint128 distributedLiquidityRewards = pool.distributeLiquidityRewards();
 
+uint128 remainingNormalizedLiquidityRewardsReserve = 0;
+    if (pool.state.remainingAdjustedLiquidityRewardsReserve > 0) {
+      uint128 yieldProviderLiquidityRatio = uint128(
+        pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
+      );
+      remainingNormalizedLiquidityRewardsReserve = pool.state.remainingAdjustedLiquidityRewardsReserve.wadRayMul(
+        yieldProviderLiquidityRatio
+      );
+
+      pool.state.remainingAdjustedLiquidityRewardsReserve = 0;
+      pool.parameters.YIELD_PROVIDER.withdraw(
+        pools[ownerAddress].parameters.UNDERLYING_TOKEN,
+        remainingNormalizedLiquidityRewardsReserve.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
+        msg.sender
+      );
+
+    }
     emit Default(ownerAddress, distributedLiquidityRewards);
   }
 

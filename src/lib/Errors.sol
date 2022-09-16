@@ -14,7 +14,6 @@ library Errors {
   error BP_POOL_DEFAULTED(); // "Pool defaulted"
   error BP_LOAN_ONGOING(); // "There's a loan ongoing, cannot update rate"
   error BP_BORROW_OUT_OF_BOUND_AMOUNT(); // "Amount provided is greater than available amount, action cannot be performed";
-  error BP_POOL_CLOSED(); // "Pool closed";
   error BP_OUT_OF_BOUND_MIN_RATE(); // "Rate provided is lower than minimum rate of the pool";
   error BP_OUT_OF_BOUND_MAX_RATE(); // "Rate provided is greater than maximum rate of the pool";
   error BP_UNMATCHED_TOKEN(); // "Token/Asset provided does not match the underlying token of the pool";
