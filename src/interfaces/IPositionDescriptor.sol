@@ -11,22 +11,22 @@ interface IPositionDescriptor {
   /**
    * @notice Emitted after the string identifier of a pool has been set
    * @param poolIdentifier The string identifier of the pool
-   * @param poolHash The hash identifier of the pool
+   * @param ownerAddress The owner identifier of the pool
    **/
-  event SetPoolIdentifier(string poolIdentifier, bytes32 poolHash);
+  event SetPoolIdentifier(address poolIdentifier, address ownerAddress);
 
   /**
-   * @notice Get the pool identifier corresponding to the input pool hash
-   * @param poolHash The identifier of the pool
+   * @notice Get the pool identifier corresponding to the input pool owner 
+   * @param ownerAddress The identifier of the pool
    **/
-  function getPoolIdentifier(bytes32 poolHash) external view returns (string memory);
+  function getPoolIdentifier(address ownerAddress) external view returns (address);
 
   /**
-   * @notice Set the pool string identifier corresponding to the input pool hash
-   * @param poolIdentifier The string identifier to associate with the corresponding pool hash
-   * @param poolHash The identifier of the pool
+   * @notice Set the pool string identifier corresponding to the input pool owner 
+   * @param poolIdentifier The string identifier to associate with the corresponding pool owner 
+   * @param ownerAddress The identifier of the pool
    **/
-  function setPoolIdentifier(string calldata poolIdentifier, bytes32 poolHash) external;
+  function setPoolIdentifier(address poolIdentifier, address ownerAddress) external;
 
   /**
    * @notice Returns the encoded svg for positions artwork

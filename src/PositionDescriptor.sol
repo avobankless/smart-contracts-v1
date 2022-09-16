@@ -9,27 +9,27 @@ import "./interfaces/IPositionDescriptor.sol";
 import "./lib/Errors.sol";
 
 contract PositionDescriptor is IPositionDescriptor {
-  mapping(bytes32 => string) internal _poolIdentifiers;
+  mapping(address => address) internal _poolIdentifiers;
 
   /**
    * @notice Get the pool identifier corresponding to the input pool hash
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function getPoolIdentifier(bytes32 poolHash) public view override returns (string memory) {
-    return _poolIdentifiers[poolHash];
+  function getPoolIdentifier(address ownerAddress) public override view returns (address) {
+    return _poolIdentifiers[ownerAddress];
   }
 
   /**
    * @notice Set the pool string identifier corresponding to the input pool hash
-   * @param poolIdentifier The string identifier to associate with the corresponding pool hash
-   * @param poolHash The identifier of the pool
+   * @param poolIdentifier The identifier off the pool 
+   * @param ownerAddress The identifier of the pool
    **/
-  function setPoolIdentifier(string calldata poolIdentifier, bytes32 poolHash) public override {
-    if (keccak256(abi.encode(poolIdentifier)) != poolHash) {
+  function setPoolIdentifier(address poolIdentifier, address ownerAddress) public override {
+    if (poolIdentifier != ownerAddress) {
       revert Errors.POD_BAD_INPUT();
     }
-    _poolIdentifiers[poolHash] = poolIdentifier;
-    emit SetPoolIdentifier(poolIdentifier, poolHash);
+    _poolIdentifiers[ownerAddress] = poolIdentifier;
+    emit SetPoolIdentifier(poolIdentifier, ownerAddress);
   }
 
   /**
@@ -38,7 +38,7 @@ contract PositionDescriptor is IPositionDescriptor {
    * @param tokenId The tokenId of the position
    **/
   function tokenURI(IPositionManager position, uint128 tokenId) public view override returns (string memory) {
-    (bytes32 poolHash, , uint128 rate, address underlyingToken, , , ) = position.position(tokenId);
+    (address ownerAddress, , uint128 rate, address underlyingToken, , , ) = position.position(tokenId);
     (uint128 bondsQuantity, uint128 normalizedDepositedAmount) = position.getPositionRepartition(tokenId);
     string memory symbol = ERC20Upgradeable(underlyingToken).symbol();
 
@@ -52,7 +52,7 @@ contract PositionDescriptor is IPositionDescriptor {
             generateBackground(),
             generateArt(),
             generateAtlendisName(),
-            generatePositionMetadata(tokenId, poolHash, symbol, rate, normalizedDepositedAmount, bondsQuantity),
+            generatePositionMetadata(tokenId, ownerAddress, symbol, rate, normalizedDepositedAmount, bondsQuantity),
             "</svg>"
           )
         )
@@ -68,7 +68,7 @@ contract PositionDescriptor is IPositionDescriptor {
               uint2str(tokenId),
               '",'
               '"description":"A Position on the Atlendis protocol for pool ',
-              _poolIdentifiers[poolHash],
+              _poolIdentifiers[ownerAddress],
               ". This NFT represents your share of the pool, its theoritical price depends on the status of the pool, "
               " the amount of tokens you originally deposited and the different rewards allocated to it."
               '"external_url":"https://app.atlendis.io/",'
@@ -262,7 +262,7 @@ contract PositionDescriptor is IPositionDescriptor {
 
   function generatePositionMetadata(
     uint128 tokenId,
-    bytes32 poolHash,
+    address ownerAddress,
     string memory symbol,
     uint128 rate,
     uint128 normalizedDepositedAmount,
@@ -272,7 +272,7 @@ contract PositionDescriptor is IPositionDescriptor {
       string(
         abi.encodePacked(
           generatePositionId(tokenId),
-          generatePoolName(poolHash),
+          generatePoolName(ownerAddress),
           generatePoolRate(rate),
           generatePoolAmounts(symbol, normalizedDepositedAmount, bondsQuantity)
         )
@@ -294,8 +294,8 @@ contract PositionDescriptor is IPositionDescriptor {
       );
   }
 
-  function generatePoolName(bytes32 poolHash) internal view returns (string memory) {
-    string memory poolIdentifier = _poolIdentifiers[poolHash];
+  function generatePoolName(address ownerAddress) internal view returns (string memory) {
+    address poolIdentifier = _poolIdentifiers[ownerAddress];
     return
       string(
         abi.encodePacked(

@@ -1,14 +1,14 @@
-import 'dotenv/config';
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
-import 'hardhat-deploy';
+import '@primitivefi/hardhat-dodoc';
+import '@typechain/hardhat';
+import 'dotenv/config';
 import 'hardhat-abi-exporter';
 import 'hardhat-contract-sizer';
+import 'hardhat-deploy';
 import 'hardhat-gas-reporter';
-import '@typechain/hardhat';
-import 'solidity-coverage';
 import 'hardhat-interface-generator';
-import '@primitivefi/hardhat-dodoc';
+import 'solidity-coverage';
 require('hardhat-contract-sizer');
 
 import {HardhatUserConfig} from 'hardhat/types';
@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 1,
           },
           evmVersion: 'istanbul',
         },

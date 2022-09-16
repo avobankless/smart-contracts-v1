@@ -19,14 +19,14 @@ import {
   repaymentPeriod,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
 } from '../../utils/constants';
-import {Deployer, Mocks, User} from '../../utils/types';
+import {Mocks, User} from '../../utils/types';
 
 //Functional setup for Position Contract Tests :
 //Deploying Contracts, mocking returned values from Aave LendingPool Contract, returning users
 export const setupTestContracts = async (
-  deployer: Deployer,
+  deployer: any,
   mocks: Mocks,
-  users: ({address: string} & Deployer)[],
+  users: any,
   customLateRepayFeePerBondRate?: BigNumber
 ): Promise<{
   deployedBorrowerPools: BorrowerPools;
@@ -40,7 +40,6 @@ export const setupTestContracts = async (
   poolTokenAddress: string;
   otherTokenAddress: string;
 }> => {
-  console.log('running setupTestContracts');
   const deployedPositionManagerDescriptor =
     await deployer.PositionDescriptorF.deploy();
   const deployedBorrowerPools = await deployer.BorrowerPoolsF.deploy();
@@ -80,8 +79,13 @@ export const setupTestContracts = async (
   });
   await deployedBorrowerPools.grantRole(GOVERNANCE_ROLE, governance.address);
 
-  await governance.BorrowerPools.createNewPool({
-    poolHash: poolHash,
+  const testBorrower = await setupUser(users[3].address, {
+    BorrowerPools: deployedBorrowerPools,
+    PositionManager: deployedPositionManager,
+  });
+
+  await testBorrower.BorrowerPools.createNewPool({
+    poolOwner: testBorrower.address,
     underlyingToken: mocks.DepositToken1.address,
     yieldProvider: mocks.ILendingPool.address,
     minRate: minRateInput,
@@ -111,11 +115,10 @@ export const setupTestContracts = async (
     PositionManager: deployedPositionManager,
   });
 
-  const testBorrower = await setupUser(users[3].address, {
-    BorrowerPools: deployedBorrowerPools,
-    PositionManager: deployedPositionManager,
-  });
-  await governance.BorrowerPools.allow(testBorrower.address, poolHash);
+  // await governance.BorrowerPools.allow(
+  //   testBorrower.address,
+  //   governance.address
+  // );
 
   const testPositionManager = await setupUser(users[4].address, {
     BorrowerPools: deployedBorrowerPools,

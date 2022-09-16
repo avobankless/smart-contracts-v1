@@ -15,20 +15,18 @@ import "./lib/Roles.sol";
 import "./lib/Types.sol";
 
 import "./interfaces/IPoolsController.sol";
+import "hardhat/console.sol";
 
-abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPoolsController {
+contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPoolsController {
   using PoolLogic for Types.Pool;
   using Scaling for uint128;
   using Uint128WadRayMath for uint128;
 
-  // borrower address to pool hash
-  mapping(address => bytes32) public borrowerAuthorizedPools;
-
-  // interest rate pool
-  mapping(bytes32 => Types.Pool) internal pools;
+  // interest rate pool. Each address can have only one pool
+  mapping(address => Types.Pool) internal pools;
 
   // protocol fees per pool
-  mapping(bytes32 => uint128) internal protocolFees;
+  mapping(address => uint128) internal protocolFees;
 
   function _initialize() internal onlyInitializing {
     // both initializers below are called to comply with OpenZeppelin's
@@ -41,7 +39,7 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
 
   /**
    * @notice Returns the parameters of a pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return underlyingToken Address of the underlying token of the pool
    * @return minRate Minimum rate of deposits accepted in the pool
    * @return maxRate Maximum rate of deposits accepted in the pool
@@ -55,10 +53,9 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
    * @return liquidityRewardsActivationThreshold Minimum amount of liqudity rewards a borrower has to
    * deposit to active the pool
    **/
-  function getPoolParameters(bytes32 poolHash)
+  function getPoolParameters(address ownerAddress)
     external
     view
-    override
     returns (
       address underlyingToken,
       uint128 minRate,
@@ -73,7 +70,7 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
       uint128 liquidityRewardsActivationThreshold
     )
   {
-    Types.PoolParameters storage poolParameters = pools[poolHash].parameters;
+    Types.PoolParameters storage poolParameters = pools[ownerAddress].parameters;
     return (
       poolParameters.UNDERLYING_TOKEN,
       poolParameters.MIN_RATE,
@@ -94,19 +91,18 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
    * @return establishmentFeeRate Amount of fees paid to the protocol at borrow time
    * @return repaymentFeeRate Amount of fees paid to the protocol at repay time
    **/
-  function getPoolFeeRates(bytes32 poolHash)
+  function getPoolFeeRates(address ownerAddress)
     external
     view
-    override
     returns (uint128 establishmentFeeRate, uint128 repaymentFeeRate)
   {
-    Types.PoolParameters storage poolParameters = pools[poolHash].parameters;
+    Types.PoolParameters storage poolParameters = pools[ownerAddress].parameters;
     return (poolParameters.ESTABLISHMENT_FEE_RATE, poolParameters.REPAYMENT_FEE_RATE);
   }
 
   /**
    * @notice Returns the state of a pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return active Signals if a pool is active and ready to accept deposits
    * @return defaulted Signals if a pool was defaulted
    * @return closed Signals if a pool was closed
@@ -120,10 +116,9 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
    * @return yieldProviderLiquidityRatio Last recorded yield provider liquidity ratio
    * @return currentBondsIssuanceIndex Current borrow period identifier of the pool
    **/
-  function getPoolState(bytes32 poolHash)
+  function getPoolState(address ownerAddress)
     external
     view
-    override
     returns (
       bool active,
       bool defaulted,
@@ -139,7 +134,7 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
       uint128 currentBondsIssuanceIndex
     )
   {
-    Types.PoolState storage poolState = pools[poolHash].state;
+    Types.PoolState storage poolState = pools[ownerAddress].state;
     return (
       poolState.active,
       poolState.defaulted,
@@ -160,48 +155,48 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
    * @notice Returns the state of a pool
    * @return earlyRepay Flag that signifies whether the early repay feature is activated or not
    **/
-  function isEarlyRepay(bytes32 poolHash) external view override returns (bool earlyRepay) {
-    return pools[poolHash].parameters.EARLY_REPAY;
+  function isEarlyRepay(address ownerAddress) external view returns (bool earlyRepay) {
+    return pools[ownerAddress].parameters.EARLY_REPAY;
   }
 
   /**
    * @notice Returns the state of a pool
    * @return defaultTimestamp The timestamp at which the pool was defaulted
    **/
-  function getDefaultTimestamp(bytes32 poolHash) external view override returns (uint128 defaultTimestamp) {
-    return pools[poolHash].state.defaultTimestamp;
+  function getDefaultTimestamp(address ownerAddress) external view returns (uint128 defaultTimestamp) {
+    return pools[ownerAddress].state.defaultTimestamp;
   }
 
   // PROTOCOL MANAGEMENT
 
-  function getProtocolFees(bytes32 poolHash) public view returns (uint128) {
-    return protocolFees[poolHash].scaleFromWad(pools[poolHash].parameters.TOKEN_DECIMALS);
+  function getProtocolFees(address ownerAddress) public view returns (uint128) {
+    return protocolFees[ownerAddress].scaleFromWad(pools[ownerAddress].parameters.TOKEN_DECIMALS);
   }
 
   /**
    * @notice Withdraws protocol fees to a target address
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param amount The amount of tokens claimed
    * @param to The address receiving the fees
    **/
   function claimProtocolFees(
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 amount,
     address to
-  ) external override onlyRole(Roles.GOVERNANCE_ROLE) {
-    uint128 normalizedAmount = amount.scaleToWad(pools[poolHash].parameters.TOKEN_DECIMALS);
-    if (pools[poolHash].parameters.POOL_HASH != poolHash) {
+  ) external onlyRole(Roles.GOVERNANCE_ROLE) {
+    uint128 normalizedAmount = amount.scaleToWad(pools[ownerAddress].parameters.TOKEN_DECIMALS);
+    if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
 
-    if (normalizedAmount > protocolFees[poolHash]) {
+    if (normalizedAmount > protocolFees[ownerAddress]) {
       revert Errors.PC_NOT_ENOUGH_PROTOCOL_FEES();
     }
 
-    protocolFees[poolHash] -= normalizedAmount;
-    pools[poolHash].parameters.YIELD_PROVIDER.withdraw(pools[poolHash].parameters.UNDERLYING_TOKEN, amount, to);
+    protocolFees[ownerAddress] -= normalizedAmount;
+    pools[ownerAddress].parameters.YIELD_PROVIDER.withdraw(pools[ownerAddress].parameters.UNDERLYING_TOKEN, amount, to);
 
-    emit ClaimProtocolFees(poolHash, normalizedAmount, to);
+    emit ClaimProtocolFees(ownerAddress, normalizedAmount, to);
   }
 
   /**
@@ -223,13 +218,13 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
    * @notice Creates a new pool
    * @param params The parameters of the new pool
    **/
-  function createNewPool(PoolCreationParams calldata params) external override onlyRole(Roles.GOVERNANCE_ROLE) {
+  function createNewPool(PoolCreationParams calldata params) external override {
     // run verifications on parameters value
     verifyPoolCreationParameters(params);
 
     // initialize pool state and parameters
-    pools[params.poolHash].parameters = Types.PoolParameters({
-      POOL_HASH: params.poolHash,
+    pools[msg.sender].parameters = Types.PoolParameters({
+      OWNER: msg.sender,
       UNDERLYING_TOKEN: params.underlyingToken,
       TOKEN_DECIMALS: IERC20PartialDecimals(params.underlyingToken).decimals(),
       YIELD_PROVIDER: params.yieldProvider,
@@ -247,17 +242,19 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
       LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD: params.liquidityRewardsActivationThreshold,
       EARLY_REPAY: params.earlyRepay
     });
-
-    pools[params.poolHash].state.yieldProviderLiquidityRatio = uint128(
+    pools[msg.sender].state.yieldProviderLiquidityRatio = uint128(
       params.yieldProvider.getReserveNormalizedIncome(address(params.underlyingToken))
     );
 
+
     emit PoolCreated(params);
 
-    if (pools[params.poolHash].parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD == 0) {
-      pools[params.poolHash].state.active = true;
-      emit PoolActivated(pools[params.poolHash].parameters.POOL_HASH);
+
+    if (pools[msg.sender].parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD == 0) {
+      pools[msg.sender].state.active = true;
+      emit PoolActivated(pools[msg.sender].parameters.OWNER);
     }
+    
   }
 
   /**
@@ -268,10 +265,10 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
     if ((params.maxRate - params.minRate) % params.rateSpacing != 0) {
       revert Errors.PC_RATE_SPACING_COMPLIANCE();
     }
-    if (params.poolHash == bytes32(0)) {
+    if (msg.sender == address(0)) {
       revert Errors.PC_ZERO_POOL();
     }
-    if (pools[params.poolHash].parameters.POOL_HASH != bytes32(0)) {
+    if (pools[msg.sender].parameters.OWNER != address(0)) {
       revert Errors.PC_POOL_ALREADY_SET_FOR_BORROWER();
     }
     uint256 yieldProviderLiquidityRatio = params.yieldProvider.getReserveNormalizedIncome(params.underlyingToken);
@@ -283,65 +280,57 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
     }
   }
 
-  /**
+/**
    * @notice Allow an address to interact with a borrower pool
    * @param borrowerAddress The address to allow
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function allow(address borrowerAddress, bytes32 poolHash) external override onlyRole(Roles.GOVERNANCE_ROLE) {
-    if (poolHash == bytes32(0)) {
+  function allow(address borrowerAddress, address ownerAddress) external override onlyRole(Roles.GOVERNANCE_ROLE) {
+    if (ownerAddress == address(0)) {
       revert Errors.PC_ZERO_POOL();
     }
     if (borrowerAddress == address(0)) {
       revert Errors.PC_ZERO_ADDRESS();
     }
-    if (pools[poolHash].parameters.POOL_HASH != poolHash) {
+    if (pools[ownerAddress].parameters.OWNER!= ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    if (borrowerAuthorizedPools[borrowerAddress] != bytes32(0)) {
-      revert Errors.PC_BORROWER_ALREADY_AUTHORIZED();
-    }
     grantRole(Roles.BORROWER_ROLE, borrowerAddress);
-    borrowerAuthorizedPools[borrowerAddress] = poolHash;
-    emit BorrowerAllowed(borrowerAddress, poolHash);
+    emit BorrowerAllowed(borrowerAddress, ownerAddress);
   }
 
   /**
    * @notice Remove borrower pool interaction rights from an address
    * @param borrowerAddress The address to disallow
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function disallow(address borrowerAddress, bytes32 poolHash) external override onlyRole(Roles.GOVERNANCE_ROLE) {
-    if (poolHash == bytes32(0)) {
+  function disallow(address borrowerAddress, address ownerAddress) external override onlyRole(Roles.GOVERNANCE_ROLE) {
+    if (ownerAddress == address(0)) {
       revert Errors.PC_ZERO_POOL();
     }
     if (borrowerAddress == address(0)) {
       revert Errors.PC_ZERO_ADDRESS();
     }
-    if (pools[poolHash].parameters.POOL_HASH != poolHash) {
+    if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    if (borrowerAuthorizedPools[borrowerAddress] != poolHash) {
-      revert Errors.PC_DISALLOW_UNMATCHED_BORROWER();
-    }
     revokeRole(Roles.BORROWER_ROLE, borrowerAddress);
-    delete borrowerAuthorizedPools[borrowerAddress];
-    emit BorrowerDisallowed(borrowerAddress, poolHash);
+    emit BorrowerDisallowed(borrowerAddress, ownerAddress);
   }
 
   /**
    * @notice Flags the pool as closed
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function closePool(bytes32 poolHash, address to) external override onlyRole(Roles.GOVERNANCE_ROLE) {
-    if (poolHash == bytes32(0)) {
+  function closePool(address ownerAddress, address to) external onlyRole(Roles.GOVERNANCE_ROLE) {
+    if (ownerAddress == address(0)) {
       revert Errors.PC_ZERO_POOL();
     }
     if (to == address(0)) {
       revert Errors.PC_ZERO_ADDRESS();
     }
-    Types.Pool storage pool = pools[poolHash];
-    if (pool.parameters.POOL_HASH != poolHash) {
+    Types.Pool storage pool = pools[ownerAddress];
+    if (pool.parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
     if (pool.state.closed) {
@@ -360,20 +349,20 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
 
       pool.state.remainingAdjustedLiquidityRewardsReserve = 0;
       pool.parameters.YIELD_PROVIDER.withdraw(
-        pools[poolHash].parameters.UNDERLYING_TOKEN,
+        pools[ownerAddress].parameters.UNDERLYING_TOKEN,
         remainingNormalizedLiquidityRewardsReserve.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
         to
       );
     }
-    emit PoolClosed(poolHash, remainingNormalizedLiquidityRewardsReserve);
+    emit PoolClosed(ownerAddress, remainingNormalizedLiquidityRewardsReserve);
   }
 
   /**
    * @notice Flags the pool as defaulted
-   * @param poolHash The identifier of the pool to default
+   * @param ownerAddress The identifier of the pool to default
    **/
-  function setDefault(bytes32 poolHash) external override onlyRole(Roles.GOVERNANCE_ROLE) {
-    Types.Pool storage pool = pools[poolHash];
+  function setDefault(address ownerAddress) external onlyRole(Roles.GOVERNANCE_ROLE) {
+    Types.Pool storage pool = pools[ownerAddress];
     if (pool.state.defaulted) {
       revert Errors.PC_POOL_DEFAULTED();
     }
@@ -388,76 +377,72 @@ abstract contract PoolsController is AccessControlUpgradeable, PausableUpgradeab
     pool.state.defaultTimestamp = uint128(block.timestamp);
     uint128 distributedLiquidityRewards = pool.distributeLiquidityRewards();
 
-    emit Default(poolHash, distributedLiquidityRewards);
+    emit Default(ownerAddress, distributedLiquidityRewards);
   }
 
   // POOL PARAMETERS MANAGEMENT
   /**
    * @notice Set the maximum amount of tokens that can be borrowed in the target pool
    **/
-  function setMaxBorrowableAmount(uint128 maxBorrowableAmount, bytes32 poolHash)
+  function setMaxBorrowableAmount(uint128 maxBorrowableAmount, address ownerAddress)
     external
-    override
     onlyRole(Roles.GOVERNANCE_ROLE)
   {
-    if (pools[poolHash].parameters.POOL_HASH != poolHash) {
+    if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    pools[poolHash].parameters.MAX_BORROWABLE_AMOUNT = maxBorrowableAmount;
+    pools[ownerAddress].parameters.MAX_BORROWABLE_AMOUNT = maxBorrowableAmount;
 
-    emit SetMaxBorrowableAmount(maxBorrowableAmount, poolHash);
+    emit SetMaxBorrowableAmount(maxBorrowableAmount, ownerAddress);
   }
 
   /**
    * @notice Set the pool liquidity rewards distribution rate
    **/
-  function setLiquidityRewardsDistributionRate(uint128 distributionRate, bytes32 poolHash)
+  function setLiquidityRewardsDistributionRate(uint128 distributionRate, address ownerAddress)
     external
-    override
     onlyRole(Roles.GOVERNANCE_ROLE)
   {
-    if (pools[poolHash].parameters.POOL_HASH != poolHash) {
+    if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    pools[poolHash].parameters.LIQUIDITY_REWARDS_DISTRIBUTION_RATE = distributionRate;
+    pools[ownerAddress].parameters.LIQUIDITY_REWARDS_DISTRIBUTION_RATE = distributionRate;
 
-    emit SetLiquidityRewardsDistributionRate(distributionRate, poolHash);
+    emit SetLiquidityRewardsDistributionRate(distributionRate, ownerAddress);
   }
 
   /**
    * @notice Set the pool establishment protocol fee rate
    **/
-  function setEstablishmentFeeRate(uint128 establishmentFeeRate, bytes32 poolHash)
+  function setEstablishmentFeeRate(uint128 establishmentFeeRate, address ownerAddress)
     external
-    override
     onlyRole(Roles.GOVERNANCE_ROLE)
   {
-    if (!pools[poolHash].state.active) {
+    if (!pools[ownerAddress].state.active) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
     if (establishmentFeeRate > PoolLogic.WAD) {
       revert Errors.PC_ESTABLISHMENT_FEES_TOO_HIGH();
     }
 
-    pools[poolHash].parameters.ESTABLISHMENT_FEE_RATE = establishmentFeeRate;
+    pools[ownerAddress].parameters.ESTABLISHMENT_FEE_RATE = establishmentFeeRate;
 
-    emit SetEstablishmentFeeRate(establishmentFeeRate, poolHash);
+    emit SetEstablishmentFeeRate(establishmentFeeRate, ownerAddress);
   }
 
   /**
    * @notice Set the pool repayment protocol fee rate
    **/
-  function setRepaymentFeeRate(uint128 repaymentFeeRate, bytes32 poolHash)
+  function setRepaymentFeeRate(uint128 repaymentFeeRate, address ownerAddress)
     external
-    override
     onlyRole(Roles.GOVERNANCE_ROLE)
   {
-    if (!pools[poolHash].state.active) {
+    if (!pools[ownerAddress].state.active) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
 
-    pools[poolHash].parameters.REPAYMENT_FEE_RATE = repaymentFeeRate;
+    pools[ownerAddress].parameters.REPAYMENT_FEE_RATE = repaymentFeeRate;
 
-    emit SetRepaymentFeeRate(repaymentFeeRate, poolHash);
+    emit SetRepaymentFeeRate(repaymentFeeRate, ownerAddress);
   }
 }

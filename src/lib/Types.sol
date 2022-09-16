@@ -9,7 +9,7 @@ library Types {
   struct PositionDetails {
     uint128 adjustedBalance;
     uint128 rate;
-    bytes32 poolHash;
+    address ownerAddress;
     address underlyingToken;
     uint128 bondsIssuanceIndex;
     uint128 remainingBonds;
@@ -32,7 +32,7 @@ library Types {
   }
 
   struct PoolParameters {
-    bytes32 POOL_HASH;
+    address OWNER;
     address UNDERLYING_TOKEN;
     uint8 TOKEN_DECIMALS;
     ILendingPool YIELD_PROVIDER;

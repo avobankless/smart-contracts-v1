@@ -13,7 +13,6 @@ import {
 import {
   FIRST_BOND_ISSUANCE_INDEX,
   NEXT_BOND_ISSUANCE_INDEX,
-  poolHash,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
 } from '../utils/constants';
@@ -25,7 +24,7 @@ const setup = deployments.createFixture(async () => {
   return setupFixture('All');
 });
 
-describe('Borrower Pools - Borrow', function () {
+describe('Borrower Pools - Borrow', async function () {
   let positionManager: User, borrower: User, governanceUser: User;
   let BorrowerPools: BorrowerPools;
   let poolParameters: PoolParameters;
@@ -46,7 +45,6 @@ describe('Borrower Pools - Borrow', function () {
   let checkTickAmounts: any;
 
   beforeEach(async () => {
-    console.log('---HERE---');
     const {deployer, mocks, users} = await setup();
     const {
       deployedBorrowerPools,
@@ -56,7 +54,9 @@ describe('Borrower Pools - Borrow', function () {
       poolTokenAddress,
     } = await setupTestContracts(deployer, mocks, users);
     BorrowerPools = deployedBorrowerPools;
-    poolParameters = await BorrowerPools.getPoolParameters(poolHash);
+    poolParameters = await BorrowerPools.getPoolParameters(
+      testBorrower.address
+    );
     minRate = poolParameters.minRate;
     rateSpacing = poolParameters.rateSpacing;
     depositRate = minRate.add(rateSpacing); //Tokens deposited at the min_rate + rate_spacing
@@ -74,7 +74,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -98,24 +98,12 @@ describe('Borrower Pools - Borrow', function () {
     await ethers.provider.send('evm_increaseTime', [
       loanDuration.add(repaymentPeriod).add(1).toNumber(),
     ]);
-    await expect(governanceUser.BorrowerPools.setDefault(poolHash)).to.emit(
-      governanceUser.BorrowerPools,
-      'Default'
-    );
+    await expect(
+      governanceUser.BorrowerPools.setDefault(borrower.address)
+    ).to.emit(governanceUser.BorrowerPools, 'Default');
     await expect(
       borrower.BorrowerPools.borrow(borrower.address, depositAmount)
     ).to.revertedWith('BP_POOL_DEFAULTED');
-  });
-  it('Borrowing from an address without the borrower role should revert', async function () {
-    const borrowAmount = depositAmount;
-    await expect(
-      positionManager.BorrowerPools.borrow(
-        positionManager.address,
-        borrowAmount
-      )
-    ).to.be.revertedWith(
-      `AccessControl: account ${positionManager.address.toLowerCase()} is missing role 0x2344277e405079ec07749d374ba0b5862a4e45a6a05ac889dbb4a991c6f9354d`
-    );
   });
   it('Borrowing more than the total deposited amount should revert', async function () {
     const borrowAmount = depositAmount.mul(2);
@@ -126,7 +114,7 @@ describe('Borrower Pools - Borrow', function () {
   it('Borrowing more than the max borrowable amount should revert', async function () {
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       maxBorrowableAmount
@@ -144,14 +132,14 @@ describe('Borrower Pools - Borrow', function () {
 
     const estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       depositAmount.div(2),
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(BigNumber.from(0)));
   });
   it('Estimating loan rate for more than max borrowable amount should return the same as max borrowable amount', async function () {
     await positionManager.BorrowerPools.deposit(
       minRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       maxBorrowableAmount
@@ -159,13 +147,13 @@ describe('Borrower Pools - Borrow', function () {
 
     let estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       maxBorrowableAmount,
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(minRate));
 
     estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       maxBorrowableAmount.mul(2),
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(minRate));
   });
@@ -173,7 +161,7 @@ describe('Borrower Pools - Borrow', function () {
     const newDepositRate = depositRate.add(rateSpacing.mul(2));
     await positionManager.BorrowerPools.deposit(
       newDepositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount.mul(2)
@@ -181,25 +169,25 @@ describe('Borrower Pools - Borrow', function () {
 
     let estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       depositAmount.div(2),
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(depositRate));
 
     estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       depositAmount,
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(depositRate));
 
     estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       depositAmount.mul(2),
-      poolHash
+      borrower.address
     );
     expect(estimatedRate.eq(depositRate.add(rateSpacing)));
 
     estimatedRate = await borrower.BorrowerPools.estimateLoanRate(
       depositAmount.mul(3),
-      poolHash
+      borrower.address
     );
     const expectedRate = depositRate.add(rateSpacing.mul(3).div(2));
     expect(estimatedRate.eq(expectedRate));
@@ -210,13 +198,13 @@ describe('Borrower Pools - Borrow', function () {
       borrower.BorrowerPools.borrow(borrower.address, borrowAmount)
     ).to.emit(borrower.BorrowerPools, 'Borrow');
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
@@ -228,7 +216,7 @@ describe('Borrower Pools - Borrow', function () {
     const newDepositRate = depositRate.add(rateSpacing);
     await positionManager.BorrowerPools.deposit(
       newDepositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount.mul(2)
@@ -236,7 +224,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -248,7 +236,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -273,20 +261,20 @@ describe('Borrower Pools - Borrow', function () {
       newDepositRate,
       loanDuration
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount,
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate.add(newDepositRate).div(2),
       normalizedBorrowedAmount: borrowAmount,
     });
 
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: depositAmount,
@@ -294,7 +282,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -306,7 +294,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -322,7 +310,7 @@ describe('Borrower Pools - Borrow', function () {
     const newDepositRate = depositRate.add(rateSpacing.mul(2));
     await positionManager.BorrowerPools.deposit(
       newDepositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount.mul(2)
@@ -330,7 +318,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -342,7 +330,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -367,20 +355,20 @@ describe('Borrower Pools - Borrow', function () {
       newDepositRate,
       loanDuration
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount,
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate.add(newDepositRate).div(2),
       normalizedBorrowedAmount: borrowAmount,
     });
 
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, newDepositRate, {
+    await checkTickAmounts(borrower.address, newDepositRate, {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: depositAmount,
@@ -388,7 +376,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -400,7 +388,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -419,17 +407,17 @@ describe('Borrower Pools - Borrow', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
@@ -442,7 +430,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -454,7 +442,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: NEXT_BOND_ISSUANCE_INDEX,
@@ -471,13 +459,13 @@ describe('Borrower Pools - Borrow', function () {
       borrower.BorrowerPools.borrow(borrower.address, borrowAmount)
     ).to.emit(borrower.BorrowerPools, 'Borrow');
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount.div(2),
@@ -492,18 +480,21 @@ describe('Borrower Pools - Borrow', function () {
       depositRate,
       loanDuration
     );
+
     const secondBondsQuantity = await computeBondsQuantity(
       borrowAmount,
       depositRate,
       loanDuration.sub(1)
     );
-    await checkPoolState(poolHash, {
+
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount.mul(2),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       bondsQuantity: firstBondsQuantity.add(secondBondsQuantity),
@@ -525,7 +516,7 @@ describe('Borrower Pools - Borrow', function () {
     const newDepositRate = depositRate.add(rateSpacing);
     await positionManager.BorrowerPools.deposit(
       newDepositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -533,7 +524,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -545,7 +536,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -565,20 +556,20 @@ describe('Borrower Pools - Borrow', function () {
       depositRate,
       loanDuration
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.mul(3).div(2),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount,
       bondsIssuedQuantity: expectedBondsQuantity,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: borrowAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: BigNumber.from(0),
@@ -586,7 +577,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -598,7 +589,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -623,7 +614,7 @@ describe('Borrower Pools - Borrow', function () {
       newDepositRate,
       loanDuration.sub(1)
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
       normalizedBorrowedAmount: borrowAmount.mul(3),
@@ -631,13 +622,13 @@ describe('Borrower Pools - Borrow', function () {
         .add(firstExpectedBondsQuantity)
         .add(secondExpectedBondsQuantity),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       bondsQuantity: expectedBondsQuantity.add(firstExpectedBondsQuantity),
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       bondsQuantity: secondExpectedBondsQuantity,
@@ -645,7 +636,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -657,7 +648,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -690,17 +681,17 @@ describe('Borrower Pools - Borrow', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount.div(2),
@@ -713,7 +704,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -725,7 +716,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: NEXT_BOND_ISSUANCE_INDEX,
@@ -750,11 +741,11 @@ describe('Borrower Pools - Borrow', function () {
       depositRate,
       loanDuration.sub(2)
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       bondsQuantity: expectedBondsQuantity.add(additionalExpectedBondsQuantity),
@@ -763,7 +754,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: NEXT_BOND_ISSUANCE_INDEX,
@@ -780,13 +771,13 @@ describe('Borrower Pools - Borrow', function () {
       borrower.BorrowerPools.borrow(borrower.address, borrowAmount)
     ).to.emit(borrower.BorrowerPools, 'Borrow');
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount.div(2),
@@ -810,14 +801,14 @@ describe('Borrower Pools - Borrow', function () {
       depositRate,
       loanDuration.sub(2)
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount.mul(3),
       bondsIssuedQuantity: firstBondsQuantity.add(secondBondsQuantity),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       bondsQuantity: firstBondsQuantity.add(secondBondsQuantity),
@@ -829,7 +820,7 @@ describe('Borrower Pools - Borrow', function () {
     const newDepositRate = depositRate.add(rateSpacing);
     await positionManager.BorrowerPools.deposit(
       newDepositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -837,7 +828,7 @@ describe('Borrower Pools - Borrow', function () {
 
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -849,7 +840,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -869,20 +860,20 @@ describe('Borrower Pools - Borrow', function () {
       depositRate,
       loanDuration
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.mul(3).div(2),
       lowerInterestRate: depositRate,
       averageBorrowRate: depositRate,
       normalizedBorrowedAmount: borrowAmount,
       bondsIssuedQuantity: expectedBondsQuantity,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: borrowAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: BigNumber.from(0),
@@ -890,7 +881,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -902,7 +893,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -930,7 +921,7 @@ describe('Borrower Pools - Borrow', function () {
       newDepositRate,
       loanDuration.sub(2)
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.mul(3).div(2),
       lowerInterestRate: depositRate,
       normalizedBorrowedAmount: borrowAmount.mul(4),
@@ -938,13 +929,13 @@ describe('Borrower Pools - Borrow', function () {
         .add(firstExpectedBondsQuantity)
         .add(secondExpectedBondsQuantity),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       bondsQuantity: expectedBondsQuantity.add(firstExpectedBondsQuantity),
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       bondsQuantity: secondExpectedBondsQuantity,
@@ -952,7 +943,7 @@ describe('Borrower Pools - Borrow', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -964,7 +955,7 @@ describe('Borrower Pools - Borrow', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: newDepositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,

@@ -43,7 +43,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
   /**
    * @notice Emitted when #withdraw is called and is a success
    * @param tokenId The tokenId of the position
-   * @return poolHash The identifier of the pool
+   * @return ownerAddress The identifier of the pool
    * @return adjustedBalance Adjusted balance of the position original deposit
    * @return rate Position bidding rate
    * @return underlyingToken Address of the tokens the position contains
@@ -56,7 +56,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     view
     override
     returns (
-      bytes32 poolHash,
+      address ownerAddress,
       uint128 adjustedBalance,
       uint128 rate,
       address underlyingToken,
@@ -67,7 +67,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
   {
     Types.PositionDetails memory _position = _positions[tokenId];
     return (
-      _position.poolHash,
+      _position.ownerAddress,
       _position.adjustedBalance,
       _position.rate,
       _position.underlyingToken,
@@ -104,13 +104,13 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     if (!_exists(tokenId)) {
       return (0, 0);
     }
-    uint256 poolCurrentMaturity = pools.getPoolMaturity(_positions[tokenId].poolHash);
+    uint256 poolCurrentMaturity = pools.getPoolMaturity(_positions[tokenId].ownerAddress);
     if ((_positions[tokenId].bondsMaturity > 0) && (_positions[tokenId].bondsMaturity == poolCurrentMaturity)) {
       return (_positions[tokenId].remainingBonds, 0);
     }
     return
       pools.getAmountRepartition(
-        _positions[tokenId].poolHash,
+        _positions[tokenId].ownerAddress,
         _positions[tokenId].rate,
         _positions[tokenId].adjustedBalance,
         _positions[tokenId].bondsIssuanceIndex
@@ -119,7 +119,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
 
   function revertIfPositionDefaulted(uint256 tokenId) private view {
     (, bool defaulted, , , , , , , , , , ) = IPoolsController(address(pools)).getPoolState(
-      _positions[uint128(tokenId)].poolHash
+      _positions[uint128(tokenId)].ownerAddress
     );
     if (defaulted) {
       revert Errors.POS_POOL_DEFAULTED();
@@ -175,14 +175,14 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
    * @param to The address for which the position is created
    * @param amount The amount of tokens to be deposited
    * @param rate The rate at which to bid for a bonds
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param underlyingToken The contract address of the token to be deposited
    **/
   function deposit(
     address to,
     uint128 amount,
     uint128 rate,
-    bytes32 poolHash,
+    address ownerAddress,
     address underlyingToken
   ) external override returns (uint128 tokenId) {
     if (amount == 0) {
@@ -199,7 +199,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
 
     (uint128 adjustedBalance, uint128 bondsIssuanceIndex) = pools.deposit(
       rate,
-      poolHash,
+      ownerAddress,
       underlyingToken,
       _msgSender(),
       normalizedAmount
@@ -208,7 +208,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     _positions[tokenId] = Types.PositionDetails({
       adjustedBalance: adjustedBalance,
       rate: rate,
-      poolHash: poolHash,
+      ownerAddress: ownerAddress,
       underlyingToken: underlyingToken,
       remainingBonds: 0,
       bondsMaturity: 0,
@@ -216,7 +216,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
       creationTimestamp: uint128(block.timestamp)
     });
 
-    emit Deposit(to, tokenId, normalizedAmount, rate, poolHash, bondsIssuanceIndex);
+    emit Deposit(to, tokenId, normalizedAmount, rate, ownerAddress, bondsIssuanceIndex);
   }
 
   /**
@@ -238,7 +238,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
 
     (uint128 newAmount, uint128 newBondsIssuanceIndex, uint128 normalizedAmount) = pools.updateRate(
       _positions[tokenId].adjustedBalance,
-      _positions[tokenId].poolHash,
+      _positions[tokenId].ownerAddress,
       oldRate,
       newRate,
       _positions[tokenId].bondsIssuanceIndex
@@ -248,7 +248,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     _positions[tokenId].rate = newRate;
     _positions[tokenId].bondsIssuanceIndex = newBondsIssuanceIndex;
 
-    emit UpdateRate(_msgSender(), tokenId, normalizedAmount, newRate, _positions[tokenId].poolHash);
+    emit UpdateRate(_msgSender(), tokenId, normalizedAmount, newRate, _positions[tokenId].ownerAddress);
   }
 
   /**
@@ -263,7 +263,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     if (_positions[tokenId].creationTimestamp == block.timestamp) {
       revert Errors.POS_TIMELOCK();
     }
-    uint256 poolCurrentMaturity = pools.getPoolMaturity(_positions[tokenId].poolHash);
+    uint256 poolCurrentMaturity = pools.getPoolMaturity(_positions[tokenId].ownerAddress);
     if (
       !((_positions[tokenId].remainingBonds == 0) ||
         ((block.timestamp >= _positions[tokenId].bondsMaturity) &&
@@ -278,7 +278,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
       uint128 remainingBondsQuantity,
       uint128 bondsMaturity
     ) = pools.getWithdrawAmounts(
-        _positions[tokenId].poolHash,
+        _positions[tokenId].ownerAddress,
         _positions[tokenId].rate,
         _positions[tokenId].adjustedBalance,
         _positions[tokenId].bondsIssuanceIndex
@@ -289,7 +289,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
     _positions[tokenId].bondsMaturity = bondsMaturity;
 
     uint128 normalizedWithdrawnDeposit = pools.withdraw(
-      _positions[tokenId].poolHash,
+      _positions[tokenId].ownerAddress,
       _positions[tokenId].rate,
       adjustedAmountToWithdraw,
       _positions[tokenId].bondsIssuanceIndex,
@@ -302,7 +302,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
       normalizedWithdrawnDeposit,
       remainingBondsQuantity,
       _positions[tokenId].rate,
-      _positions[tokenId].poolHash
+      _positions[tokenId].ownerAddress
     );
 
     if (_positions[tokenId].remainingBonds == 0) {

@@ -73,7 +73,7 @@ export async function setupFixture(fixtureName: string) {
   );
   const poolLogic = await PoolLogicFactory.deploy();
 
-  const contracts = {
+  const contracts: any = {
     BorrowerPools: <BorrowerPools>await ethers.getContract('BorrowerPools'),
     BorrowerPoolsF: <BorrowerPools__factory>await ethers.getContractFactory(
       'BorrowerPools',
@@ -98,7 +98,6 @@ export async function setupFixture(fixtureName: string) {
     ),
   };
 
-  console.log('----HERE2----');
   const users = await setupUsers(await getUnnamedAccounts(), contracts);
   return {
     ...contracts,
@@ -115,7 +114,7 @@ export async function setupFixture(fixtureName: string) {
 }
 
 type CheckPositionRepartitionSetup = {
-  poolHash: string;
+  ownerAddress: string;
   rate: BigNumber;
   adjustedAmount: BigNumber;
   bondsIssuanceIndex: BigNumber;
@@ -129,7 +128,7 @@ type CheckPositionRepartitionParameters = {
 export function checkPositionRepartitionUtil(borrower: User) {
   return async (
     {
-      poolHash,
+      ownerAddress,
       rate,
       adjustedAmount,
       bondsIssuanceIndex,
@@ -138,7 +137,7 @@ export function checkPositionRepartitionUtil(borrower: User) {
   ): Promise<void> => {
     const depositRepartition =
       await borrower.BorrowerPools.getAmountRepartition(
-        poolHash,
+        ownerAddress,
         rate,
         adjustedAmount,
         bondsIssuanceIndex
@@ -173,7 +172,7 @@ type CheckPoolState = {
 
 export function checkPoolUtil(borrower: User) {
   return async (
-    poolHash: string,
+    ownerAddress: string,
     {
       normalizedAvailableDeposits,
       lowerInterestRate,
@@ -184,19 +183,20 @@ export function checkPoolUtil(borrower: User) {
     }: CheckPoolState
   ): Promise<void> => {
     const poolAggregates = await borrower.BorrowerPools.getPoolAggregates(
-      poolHash
+      ownerAddress
     );
     if (averageBorrowRate) {
       expect(poolAggregates[0], 'averageBorrowRate').to.equal(
         averageBorrowRate
       );
     }
-    const poolState = await borrower.BorrowerPools.getPoolState(poolHash);
+    const poolState = await borrower.BorrowerPools.getPoolState(ownerAddress);
     if (lowerInterestRate) {
       expect(poolState.lowerInterestRate, 'lowerInterestRate').to.equal(
         lowerInterestRate
       );
     }
+
     if (normalizedAvailableDeposits !== undefined) {
       let res = false;
       if (Array.isArray(normalizedAvailableDeposits)) {
@@ -211,6 +211,7 @@ export function checkPoolUtil(borrower: User) {
           .abs()
           .lt(1000);
       }
+
       expect(
         res,
         `normalizedAvailableDeposits : expected ${normalizedAvailableDeposits}, got ${poolState.normalizedAvailableDeposits}`
@@ -279,7 +280,7 @@ type CheckTickAmounts = {
 
 export function checkTickUtil(borrower: User) {
   return async (
-    poolHash: string,
+    ownerAddress: string,
     rate: BigNumber,
     {
       adjustedTotalAmount,
@@ -292,7 +293,7 @@ export function checkTickUtil(borrower: User) {
     }: CheckTickAmounts
   ): Promise<void> => {
     const poolParameters = await borrower.BorrowerPools.getPoolParameters(
-      poolHash
+      ownerAddress
     );
     const [
       adjustedTotalAmountBP,
@@ -301,7 +302,7 @@ export function checkTickUtil(borrower: User) {
       adjustedPendingDepositAmountBP,
       atlendisLiquidityRatioBP,
       accruedFeesBP,
-    ] = await borrower.BorrowerPools.getTickAmounts(poolHash, rate);
+    ] = await borrower.BorrowerPools.getTickAmounts(ownerAddress, rate);
     if (adjustedTotalAmount) {
       expect(
         adjustedTotalAmountBP.sub(adjustedTotalAmount).abs().lt(10),
@@ -361,6 +362,7 @@ export function checkTickUtil(borrower: User) {
         `atlendisLiquidityRatio : expected ${atlendisLiquidityRatio}, got ${atlendisLiquidityRatioBP}`
       ).to.be.true;
     }
+
     if (bondsQuantity) {
       expect(
         bondsQuantityBP.sub(bondsQuantity).abs().lt(50),

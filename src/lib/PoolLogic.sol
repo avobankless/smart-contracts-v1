@@ -11,44 +11,44 @@ import "./Errors.sol";
 import "../extensions/AaveILendingPool.sol";
 
 library PoolLogic {
-  event PoolActivated(bytes32 poolHash);
+  event PoolActivated(address ownerAddress);
   enum BalanceUpdateType {
     INCREASE,
     DECREASE
   }
-  event TickInitialized(bytes32 borrower, uint128 rate, uint128 atlendisLiquidityRatio);
-  event TickLoanDeposit(bytes32 borrower, uint128 rate, uint128 adjustedPendingDeposit);
+  event TickInitialized(address borrower, uint128 rate, uint128 atlendisLiquidityRatio);
+  event TickLoanDeposit(address borrower, uint128 rate, uint128 adjustedPendingDeposit);
   event TickNoLoanDeposit(
-    bytes32 borrower,
+    address borrower,
     uint128 rate,
     uint128 adjustedPendingDeposit,
     uint128 atlendisLiquidityRatio
   );
   event TickBorrow(
-    bytes32 borrower,
+    address borrower,
     uint128 rate,
     uint128 adjustedRemainingAmountReduction,
     uint128 loanedAmount,
     uint128 atlendisLiquidityRatio,
     uint128 unborrowedRatio
   );
-  event TickWithdrawPending(bytes32 borrower, uint128 rate, uint128 adjustedAmountToWithdraw);
+  event TickWithdrawPending(address borrower, uint128 rate, uint128 adjustedAmountToWithdraw);
   event TickWithdrawRemaining(
-    bytes32 borrower,
+    address borrower,
     uint128 rate,
     uint128 adjustedAmountToWithdraw,
     uint128 atlendisLiquidityRatio,
     uint128 accruedFeesToWithdraw
   );
   event TickPendingDeposit(
-    bytes32 borrower,
+    address borrower,
     uint128 rate,
     uint128 adjustedPendingAmount,
     bool poolBondIssuanceIndexIncremented
   );
-  event TopUpLiquidityRewards(bytes32 borrower, uint128 addedLiquidityRewards);
-  event TickRepay(bytes32 borrower, uint128 rate, uint128 newAdjustedRemainingAmount, uint128 atlendisLiquidityRatio);
-  event CollectFeesForTick(bytes32 borrower, uint128 rate, uint128 remainingLiquidityRewards, uint128 addedAccruedFees);
+  event TopUpLiquidityRewards(address borrower, uint128 addedLiquidityRewards);
+  event TickRepay(address borrower, uint128 rate, uint128 newAdjustedRemainingAmount, uint128 atlendisLiquidityRatio);
+  event CollectFeesForTick(address borrower, uint128 rate, uint128 remainingLiquidityRewards, uint128 addedAccruedFees);
 
   using PoolLogic for Types.Pool;
   using Uint128WadRayMath for uint128;
@@ -183,7 +183,7 @@ library PoolLogic {
       adjustedAmount = normalizedAmount.wadRayDiv(tick.yieldProviderLiquidityRatio);
       tick.adjustedPendingAmount += adjustedAmount;
       returnBondsIssuanceIndex = pool.state.currentBondsIssuanceIndex + 1;
-      emit TickLoanDeposit(pool.parameters.POOL_HASH, rate, adjustedAmount);
+      emit TickLoanDeposit(pool.parameters.OWNER, rate, adjustedAmount);
     }
     // if there is no ongoing loan, the deposited amount goes to total and remaining
     // amount and can be borrowed instantaneously
@@ -198,7 +198,7 @@ library PoolLogic {
       adjustedAmount = adjustedAmount.wadRayDiv(
         pool.getBondIssuanceMultiplierForTick(rate, pool.state.currentBondsIssuanceIndex)
       );
-      emit TickNoLoanDeposit(pool.parameters.POOL_HASH, rate, adjustedAmount, tick.atlendisLiquidityRatio);
+      emit TickNoLoanDeposit(pool.parameters.OWNER, rate, adjustedAmount, tick.atlendisLiquidityRatio);
     }
     if ((pool.state.lowerInterestRate == 0) || (rate < pool.state.lowerInterestRate)) {
       pool.state.lowerInterestRate = rate;
@@ -261,7 +261,7 @@ library PoolLogic {
     // emit event with tick updates
     uint128 unborrowedRatio = tick.adjustedRemainingAmount.wadDiv(tick.adjustedTotalAmount);
     emit TickBorrow(
-      pool.parameters.POOL_HASH,
+      pool.parameters.OWNER,
       rate,
       adjustedAmountForPurchase,
       normalizedUsedAmountForPurchase,
@@ -344,7 +344,7 @@ library PoolLogic {
         tick.adjustedWithdrawnAmount += adjustedAmountToWithdraw;
       }
       emit TickWithdrawRemaining(
-        pool.parameters.POOL_HASH,
+        pool.parameters.OWNER,
         rate,
         adjustedAmountToWithdraw,
         tick.atlendisLiquidityRatio,
@@ -353,7 +353,7 @@ library PoolLogic {
     } else {
       tick.adjustedPendingAmount -= adjustedAmountToWithdraw;
       normalizedAmountToWithdraw = adjustedAmountToWithdraw.wadRayMul(tick.yieldProviderLiquidityRatio);
-      emit TickWithdrawPending(pool.parameters.POOL_HASH, rate, adjustedAmountToWithdraw);
+      emit TickWithdrawPending(pool.parameters.OWNER, rate, adjustedAmountToWithdraw);
     }
 
     // update lowerInterestRate if necessary
@@ -395,7 +395,7 @@ library PoolLogic {
       tick.normalizedLoanedAmount = 0;
       tick.accruedFees = 0;
       tick.adjustedRemainingAmount = tick.adjustedTotalAmount;
-      emit TickRepay(pool.parameters.POOL_HASH, rate, tick.adjustedTotalAmount, tick.atlendisLiquidityRatio);
+      emit TickRepay(pool.parameters.OWNER, rate, tick.adjustedTotalAmount, tick.atlendisLiquidityRatio);
     }
   }
 
@@ -432,7 +432,7 @@ library PoolLogic {
       tick.adjustedRemainingAmount = tick.adjustedTotalAmount;
       tick.adjustedPendingAmount = 0;
       emit TickPendingDeposit(
-        pool.parameters.POOL_HASH,
+        pool.parameters.OWNER,
         rate,
         adjustedPendingAmount,
         !bondsIssuanceIndexAlreadyIncremented
@@ -511,7 +511,7 @@ library PoolLogic {
       uint128 accruedFeesIncrease = updatedAccruedFees - tick.accruedFees;
       if (tick.atlendisLiquidityRatio == 0) {
         tick.yieldProviderLiquidityRatio = yieldProviderLiquidityRatio;
-        emit TickInitialized(pool.parameters.POOL_HASH, rate, yieldProviderLiquidityRatio);
+        emit TickInitialized(pool.parameters.OWNER, rate, yieldProviderLiquidityRatio);
       }
       tick.atlendisLiquidityRatio = updatedAtlendisLiquidityRatio;
       tick.accruedFees = updatedAccruedFees;
@@ -520,7 +520,7 @@ library PoolLogic {
       tick.lastFeeDistributionTimestamp = uint128(block.timestamp);
 
       emit CollectFeesForTick(
-        pool.parameters.POOL_HASH,
+        pool.parameters.OWNER,
         rate,
         pool.state.remainingAdjustedLiquidityRewardsReserve.wadRayMul(yieldProviderLiquidityRatio),
         accruedFeesIncrease

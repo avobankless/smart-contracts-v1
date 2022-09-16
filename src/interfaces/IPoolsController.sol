@@ -18,72 +18,72 @@ interface IPoolsController {
   /**
    * @notice Emitted after a borrower address was allowed to borrow from a pool
    * @param borrowerAddress The address to allow
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  event BorrowerAllowed(address borrowerAddress, bytes32 poolHash);
+  event BorrowerAllowed(address borrowerAddress, address ownerAddress);
 
   /**
    * @notice Emitted after a borrower address was disallowed to borrow from a pool
    * @param borrowerAddress The address to disallow
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  event BorrowerDisallowed(address borrowerAddress, bytes32 poolHash);
+  event BorrowerDisallowed(address borrowerAddress, address ownerAddress);
 
   /**
    * @notice Emitted when a pool is active, i.e. after the borrower deposits enough tokens
    * in its pool liquidity rewards reserve as agreed before the pool creation
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  event PoolActivated(bytes32 poolHash);
+  event PoolActivated(address ownerAddress);
 
   /**
    * @notice Emitted after pool is closed
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param collectedLiquidityRewards The amount of liquidity rewards to have been collected at closing time
    **/
-  event PoolClosed(bytes32 poolHash, uint128 collectedLiquidityRewards);
+  event PoolClosed(address ownerAddress, uint128 collectedLiquidityRewards);
 
   /**
    * @notice Emitted when a pool defaults on its loan repayment
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param distributedLiquidityRewards The remaining liquidity rewards distributed to
    * bond holders
    **/
-  event Default(bytes32 poolHash, uint128 distributedLiquidityRewards);
+  event Default(address ownerAddress, uint128 distributedLiquidityRewards);
 
   /**
    * @notice Emitted after governance sets the maximum borrowable amount for a pool
    **/
-  event SetMaxBorrowableAmount(uint128 maxTokenDeposit, bytes32 poolHash);
+  event SetMaxBorrowableAmount(uint128 maxTokenDeposit, address ownerAddress);
 
   /**
    * @notice Emitted after governance sets the liquidity rewards distribution rate for a pool
    **/
-  event SetLiquidityRewardsDistributionRate(uint128 distributionRate, bytes32 poolHash);
+  event SetLiquidityRewardsDistributionRate(uint128 distributionRate, address ownerAddress);
 
   /**
    * @notice Emitted after governance sets the establishment fee for a pool
    **/
-  event SetEstablishmentFeeRate(uint128 establishmentRate, bytes32 poolHash);
+  event SetEstablishmentFeeRate(uint128 establishmentRate, address ownerAddress);
 
   /**
    * @notice Emitted after governance sets the repayment fee for a pool
    **/
-  event SetRepaymentFeeRate(uint128 repaymentFeeRate, bytes32 poolHash);
+  event SetRepaymentFeeRate(uint128 repaymentFeeRate, address ownerAddress);
 
   /**
    * @notice Emitted after governance claims the fees associated with a pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param normalizedAmount The amount of tokens claimed
    * @param to The address receiving the fees
    **/
-  event ClaimProtocolFees(bytes32 poolHash, uint128 normalizedAmount, address to);
+  event ClaimProtocolFees(address ownerAddress, uint128 normalizedAmount, address to);
 
   // VIEW METHODS
 
   /**
    * @notice Returns the parameters of a pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return underlyingToken Address of the underlying token of the pool
    * @return minRate Minimum rate of deposits accepted in the pool
    * @return maxRate Maximum rate of deposits accepted in the pool
@@ -97,7 +97,7 @@ interface IPoolsController {
    * @return liquidityRewardsActivationThreshold Minimum amount of liqudity rewards a borrower has to
    * deposit to active the pool
    **/
-  function getPoolParameters(bytes32 poolHash)
+  function getPoolParameters(address ownerAddress)
     external
     view
     returns (
@@ -119,14 +119,14 @@ interface IPoolsController {
    * @return establishmentFeeRate Amount of fees paid to the protocol at borrow time
    * @return repaymentFeeRate Amount of fees paid to the protocol at repay time
    **/
-  function getPoolFeeRates(bytes32 poolHash)
+  function getPoolFeeRates(address ownerAddress)
     external
     view
     returns (uint128 establishmentFeeRate, uint128 repaymentFeeRate);
 
   /**
    * @notice Returns the state of a pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return active Signals if a pool is active and ready to accept deposits
    * @return defaulted Signals if a pool was defaulted
    * @return closed Signals if a pool was closed
@@ -140,7 +140,7 @@ interface IPoolsController {
    * @return yieldProviderLiquidityRatio Last recorded yield provider liquidity ratio
    * @return currentBondsIssuanceIndex Current borrow period identifier of the pool
    **/
-  function getPoolState(bytes32 poolHash)
+  function getPoolState(address ownerAddress)
     external
     view
     returns (
@@ -162,19 +162,19 @@ interface IPoolsController {
    * @notice Signals whether the early repay feature is activated or not
    * @return earlyRepay Flag that signifies whether the early repay feature is activated or not
    **/
-  function isEarlyRepay(bytes32 poolHash) external view returns (bool earlyRepay);
+  function isEarlyRepay(address ownerAddress) external view returns (bool earlyRepay);
 
   /**
    * @notice Returns the state of a pool
    * @return defaultTimestamp The timestamp at which the pool was defaulted
    **/
-  function getDefaultTimestamp(bytes32 poolHash) external view returns (uint128 defaultTimestamp);
+  function getDefaultTimestamp(address ownerAddress) external view returns (uint128 defaultTimestamp);
 
   // GOVERNANCE METHODS
 
   /**
    * @notice Parameters used for a pool creation
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param underlyingToken Address of the pool underlying token
    * @param yieldProvider Yield provider of the pool
    * @param minRate Minimum bidding rate for the pool
@@ -193,7 +193,7 @@ interface IPoolsController {
    * rewards reserve to activate the pool
    **/
   struct PoolCreationParams {
-    bytes32 poolHash;
+    address poolOwner;
     address underlyingToken;
     ILendingPool yieldProvider;
     uint128 minRate;
@@ -220,58 +220,58 @@ interface IPoolsController {
   /**
    * @notice Allow an address to interact with a borrower pool
    * @param borrowerAddress The address to allow
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function allow(address borrowerAddress, bytes32 poolHash) external;
+  function allow(address borrowerAddress, address ownerAddress) external;
 
   /**
    * @notice Remove pool interaction rights from an address
    * @param borrowerAddress The address to disallow
-   * @param poolHash The identifier of the borrower pool
+   * @param ownerAddress The identifier of the borrower pool
    **/
-  function disallow(address borrowerAddress, bytes32 poolHash) external;
+  function disallow(address borrowerAddress, address ownerAddress) external;
 
   /**
    * @notice Flags the pool as closed
-   * @param poolHash The identifier of the pool to be closed
+   * @param ownerAddress The identifier of the pool to be closed
    * @param to An address to which the remaining liquidity rewards will be sent
    **/
-  function closePool(bytes32 poolHash, address to) external;
+  function closePool(address ownerAddress, address to) external;
 
   /**
    * @notice Flags the pool as defaulted
-   * @param poolHash The identifier of the pool to default
+   * @param ownerAddress The identifier of the pool to default
    **/
-  function setDefault(bytes32 poolHash) external;
+  function setDefault(address ownerAddress) external;
 
   /**
    * @notice Set the maximum amount of tokens that can be borrowed in the target pool
    **/
-  function setMaxBorrowableAmount(uint128 maxTokenDeposit, bytes32 poolHash) external;
+  function setMaxBorrowableAmount(uint128 maxTokenDeposit, address ownerAddress) external;
 
   /**
    * @notice Set the pool liquidity rewards distribution rate
    **/
-  function setLiquidityRewardsDistributionRate(uint128 distributionRate, bytes32 poolHash) external;
+  function setLiquidityRewardsDistributionRate(uint128 distributionRate, address ownerAddress) external;
 
   /**
    * @notice Set the pool establishment protocol fee rate
    **/
-  function setEstablishmentFeeRate(uint128 establishmentFeeRate, bytes32 poolHash) external;
+  function setEstablishmentFeeRate(uint128 establishmentFeeRate, address ownerAddress) external;
 
   /**
    * @notice Set the pool repayment protocol fee rate
    **/
-  function setRepaymentFeeRate(uint128 repaymentFeeRate, bytes32 poolHash) external;
+  function setRepaymentFeeRate(uint128 repaymentFeeRate, address ownerAddress) external;
 
   /**
    * @notice Withdraws protocol fees to a target address
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param normalizedAmount The amount of tokens claimed
    * @param to The address receiving the fees
    **/
   function claimProtocolFees(
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 normalizedAmount,
     address to
   ) external;

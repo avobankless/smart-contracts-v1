@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: None
+// SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -37,12 +37,12 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
   /**
    * @notice Returns the liquidity ratio of a given tick in a pool's order book.
    * The liquidity ratio is an accounting construct to deduce the accrued interest over time.
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param rate The tick rate from which to extract the liquidity ratio
    * @return liquidityRatio The liquidity ratio of the given tick
    **/
-  function getTickLiquidityRatio(bytes32 poolHash, uint128 rate) public view override returns (uint128 liquidityRatio) {
-    liquidityRatio = pools[poolHash].ticks[rate].atlendisLiquidityRatio;
+  function getTickLiquidityRatio(address ownerAddress, uint128 rate) public view override returns (uint128 liquidityRatio) {
+    liquidityRatio = pools[ownerAddress].ticks[rate].atlendisLiquidityRatio;
     if (liquidityRatio == 0) {
       liquidityRatio = uint128(PoolLogic.RAY);
     }
@@ -50,7 +50,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
 
   /**
    * @notice Returns the repartition between bonds and deposits of the given tick.
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param rate The tick rate from which to get data
    * @return adjustedTotalAmount Total amount of deposit in the tick, excluding
    * the pending amounts
@@ -63,7 +63,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @return accruedFees The total fees claimable in the current tick, either from
    * yield provider interests or liquidity rewards accrual
    **/
-  function getTickAmounts(bytes32 poolHash, uint128 rate)
+  function getTickAmounts(address ownerAddress, uint128 rate)
     public
     view
     override
@@ -76,7 +76,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       uint128 accruedFees
     )
   {
-    Types.Tick storage tick = pools[poolHash].ticks[rate];
+    Types.Tick storage tick = pools[ownerAddress].ticks[rate];
     return (
       tick.adjustedTotalAmount,
       tick.adjustedRemainingAmount,
@@ -89,40 +89,40 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
 
   /**
    * @notice Returns the timestamp of the last fee distribution to the tick
-   * @param pool The identifier of the pool pool
+   * @param ownerAddress The identifier of the pool pool
    * @param rate The tick rate from which to get data
    * @return lastFeeDistributionTimestamp Timestamp of the last fee's distribution to the tick
    **/
-  function getTickLastUpdate(string calldata pool, uint128 rate)
+  function getTickLastUpdate(address ownerAddress, uint128 rate)
     public
     view
     override
     returns (uint128 lastFeeDistributionTimestamp)
   {
-    Types.Tick storage tick = pools[keccak256(abi.encode(pool))].ticks[rate];
+    Types.Tick storage tick = pools[ownerAddress].ticks[rate];
     return tick.lastFeeDistributionTimestamp;
   }
 
   /**
    * @notice Returns the current state of the pool's parameters
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return weightedAverageLendingRate The average deposit bidding rate in the order book
    * @return adjustedPendingDeposits Amount of tokens deposited after bond
    * issuance and currently on third party yield provider
    **/
-  function getPoolAggregates(bytes32 poolHash)
+  function getPoolAggregates(address ownerAddress)
     external
     view
     override
     returns (uint128 weightedAverageLendingRate, uint128 adjustedPendingDeposits)
   {
-    Types.Pool storage pool = pools[poolHash];
-    Types.PoolParameters storage parameters = pools[poolHash].parameters;
+    Types.Pool storage pool = pools[ownerAddress];
+    Types.PoolParameters storage parameters = pools[ownerAddress].parameters;
 
     adjustedPendingDeposits = 0;
 
     if (pool.state.currentMaturity == 0) {
-      weightedAverageLendingRate = estimateLoanRate(pool.parameters.MAX_BORROWABLE_AMOUNT, poolHash);
+      weightedAverageLendingRate = estimateLoanRate(pool.parameters.MAX_BORROWABLE_AMOUNT, ownerAddress);
     } else {
       uint128 amountWeightedRate = 0;
       uint128 totalAmount = 0;
@@ -138,27 +138,27 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
 
   /**
    * @notice Returns the current maturity of the pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return poolCurrentMaturity The pool's current maturity
    **/
-  function getPoolMaturity(bytes32 poolHash) public view override returns (uint128 poolCurrentMaturity) {
-    return pools[poolHash].state.currentMaturity;
+  function getPoolMaturity(address ownerAddress) public view override returns (uint128 poolCurrentMaturity) {
+    return pools[ownerAddress].state.currentMaturity;
   }
 
   /**
    * @notice Estimates the lending rate corresponding to the input amount,
    * depending on the current state of the pool
    * @param normalizedBorrowedAmount The amount to be borrowed from the pool
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return estimatedRate The estimated loan rate for the current state of the pool
    **/
-  function estimateLoanRate(uint128 normalizedBorrowedAmount, bytes32 poolHash)
+  function estimateLoanRate(uint128 normalizedBorrowedAmount, address ownerAddress)
     public
     view
     override
     returns (uint128 estimatedRate)
   {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
     Types.PoolParameters storage parameters = pool.parameters;
 
     if (pool.state.currentMaturity > 0 || pool.state.defaulted || pool.state.closed || !pool.state.active) {
@@ -196,7 +196,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
   /**
    * @notice Returns the token amount's repartition between bond quantity and normalized
    * deposited amount currently placed on third party yield provider
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param rate Tick's rate
    * @param adjustedAmount Adjusted amount of tokens currently on third party yield provider
    * @param bondsIssuanceIndex The identifier of the borrow group
@@ -204,12 +204,12 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @return normalizedDepositedAmount Amount of deposit currently on third party yield provider
    **/
   function getAmountRepartition(
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 rate,
     uint128 adjustedAmount,
     uint128 bondsIssuanceIndex
   ) public view override returns (uint128 bondsQuantity, uint128 normalizedDepositedAmount) {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
     uint128 yieldProviderLiquidityRatio = uint128(
       pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
     );
@@ -233,10 +233,10 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
   /**
    * @notice Returns the total amount a borrower has to repay to a pool. Includes borrowed
    * amount, late repay fees and protocol fees
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @return normalizedRepayAmount Total repay amount
    **/
-  function getRepayAmounts(bytes32 poolHash, bool earlyRepay)
+  function getRepayAmounts(address ownerAddress, bool earlyRepay)
     public
     view
     override
@@ -246,9 +246,9 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       uint128 repaymentFees
     )
   {
-    uint128 preFeeRepayAmount = pools[poolHash].getRepayValue(earlyRepay);
-    lateRepayFee = pools[poolHash].getLateRepayFeePerBond().wadMul(preFeeRepayAmount);
-    repaymentFees = pools[poolHash].getRepaymentFees(preFeeRepayAmount + lateRepayFee);
+    uint128 preFeeRepayAmount = pools[ownerAddress].getRepayValue(earlyRepay);
+    lateRepayFee = pools[ownerAddress].getLateRepayFeePerBond().wadMul(preFeeRepayAmount);
+    repaymentFees = pools[ownerAddress].getRepaymentFees(preFeeRepayAmount + lateRepayFee);
     normalizedRepayAmount = preFeeRepayAmount + repaymentFees + lateRepayFee;
   }
 
@@ -261,7 +261,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * on the underlying yield provider until the borrower sells bonds at the specified rate.
    * @param normalizedAmount The amount of the given asset to deposit
    * @param rate The rate at which to bid for a bond
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param underlyingToken Contract' address of the token to be deposited
    * @param sender The lender address who calls the deposit function on the Position
    * @return adjustedAmount Deposited amount adjusted with current liquidity index
@@ -269,7 +269,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    **/
   function deposit(
     uint128 rate,
-    bytes32 poolHash,
+    address ownerAddress,
     address underlyingToken,
     address sender,
     uint128 normalizedAmount
@@ -280,7 +280,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     onlyRole(Roles.POSITION_ROLE)
     returns (uint128 adjustedAmount, uint128 bondsIssuanceIndex)
   {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
     if (pool.state.defaulted) {
       revert Errors.BP_POOL_DEFAULTED();
     }
@@ -314,7 +314,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @dev This method is meant to be used exclusively with the withdraw() method
    * Under certain circumstances, this method can return incorrect values, that would otherwise
    * be rejected by the checks made in the withdraw() method
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param rate The rate the position is bidding for
    * @param adjustedAmount The amount of tokens in the position, adjusted to the deposit liquidity ratio
    * @param bondsIssuanceIndex An index determining deposit timing
@@ -324,7 +324,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @return bondsMaturity The maturity of bonds remaining within the position after withdraw
    **/
   function getWithdrawAmounts(
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 rate,
     uint128 adjustedAmount,
     uint128 bondsIssuanceIndex
@@ -339,7 +339,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       uint128 bondsMaturity
     )
   {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
     if (!pool.state.active) {
       revert Errors.BP_POOL_NOT_ACTIVE();
     }
@@ -360,7 +360,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
   /**
    * @notice Gets called within the Position.withdraw() function and enables a lender to
    * withdraw assets that are deposited with the underlying yield provider
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param rate The rate the position is bidding for
    * @param adjustedAmountToWithdraw The actual amount of tokens to withdraw from the position
    * @param bondsIssuanceIndex An index determining deposit timing
@@ -368,13 +368,13 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @return normalizedDepositedAmountToWithdraw Actual amount of tokens withdrawn and sent to the lender
    **/
   function withdraw(
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 rate,
     uint128 adjustedAmountToWithdraw,
     uint128 bondsIssuanceIndex,
     address owner
   ) public override whenNotPaused onlyRole(Roles.POSITION_ROLE) returns (uint128 normalizedDepositedAmountToWithdraw) {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
 
     if (bondsIssuanceIndex > (pool.state.currentBondsIssuanceIndex + 1)) {
       revert Errors.BP_BOND_ISSUANCE_ID_TOO_HIGH();
@@ -409,7 +409,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * updating its rate. This is only possible as long as there are no bonds in the position, i.e the full
    * position currently lies with the yield provider
    * @param adjustedAmount The adjusted balance of tokens of the given position
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param oldRate The current rate of the position
    * @param newRate The new rate of the position
    * @param oldBondsIssuanceIndex The identifier of the borrow group from the given position
@@ -419,7 +419,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    **/
   function updateRate(
     uint128 adjustedAmount,
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 oldRate,
     uint128 newRate,
     uint128 oldBondsIssuanceIndex
@@ -434,13 +434,13 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       uint128 normalizedAmount
     )
   {
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[ownerAddress];
 
     if (pool.state.closed) {
       revert Errors.BP_POOL_CLOSED();
     }
     // cannot update rate when being borrowed
-    (uint128 bondsQuantity, ) = getAmountRepartition(poolHash, oldRate, adjustedAmount, oldBondsIssuanceIndex);
+    (uint128 bondsQuantity, ) = getAmountRepartition(ownerAddress, oldRate, adjustedAmount, oldBondsIssuanceIndex);
     if (bondsQuantity != 0) {
       revert Errors.BP_LOAN_ONGOING();
     }
@@ -470,9 +470,8 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @param to The address to which the borrowed funds should be sent.
    * @param loanAmount The total amount of the loan
    **/
-  function borrow(address to, uint128 loanAmount) external override whenNotPaused onlyRole(Roles.BORROWER_ROLE) {
-    bytes32 poolHash = borrowerAuthorizedPools[_msgSender()];
-    Types.Pool storage pool = pools[poolHash];
+  function borrow(address to, uint128 loanAmount) external override whenNotPaused {
+    Types.Pool storage pool = pools[msg.sender];
     if (pool.state.closed) {
       revert Errors.BP_POOL_CLOSED();
     }
@@ -516,12 +515,13 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     }
     if (pool.state.currentMaturity == 0) {
       pool.state.currentMaturity = uint128(block.timestamp + pool.parameters.LOAN_DURATION);
-      emit Borrow(poolHash, normalizedBorrowedAmount, normalizedEstablishmentFee);
+      emit Borrow(msg.sender, normalizedBorrowedAmount, normalizedEstablishmentFee);
+
     } else {
-      emit FurtherBorrow(poolHash, normalizedBorrowedAmount, normalizedEstablishmentFee);
+      emit FurtherBorrow(msg.sender, normalizedBorrowedAmount, normalizedEstablishmentFee);
     }
 
-    protocolFees[poolHash] += normalizedEstablishmentFee;
+    protocolFees[msg.sender] += normalizedEstablishmentFee;
     pool.state.normalizedBorrowedAmount += normalizedLoanAmount;
     pool.parameters.YIELD_PROVIDER.withdraw(
       pool.parameters.UNDERLYING_TOKEN,
@@ -534,8 +534,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @notice Repays a currently outstanding bonds of the given pool.
    **/
   function repay() external override whenNotPaused onlyRole(Roles.BORROWER_ROLE) {
-    bytes32 poolHash = borrowerAuthorizedPools[_msgSender()];
-    Types.Pool storage pool = pools[poolHash];
+    Types.Pool storage pool = pools[msg.sender];
     if (pool.state.defaulted) {
       revert Errors.BP_POOL_DEFAULTED();
     }
@@ -577,12 +576,12 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     pool.state.nextLoanMinStart = uint128(block.timestamp) + pool.parameters.COOLDOWN_PERIOD;
 
     pool.state.bondsIssuedQuantity = 0;
-    protocolFees[poolHash] += repaymentFees;
+    protocolFees[msg.sender] += repaymentFees;
     pool.state.normalizedAvailableDeposits += normalizedRepayAmount;
 
     if (block.timestamp > (pool.state.currentMaturity + pool.parameters.REPAYMENT_PERIOD)) {
       emit LateRepay(
-        poolHash,
+        msg.sender,
         normalizedRepayAmount,
         lateRepayFee,
         repaymentFees,
@@ -591,7 +590,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       );
     } else if (pool.state.currentMaturity > block.timestamp) {
       emit EarlyRepay(
-        poolHash,
+        msg.sender,
         normalizedRepayAmount,
         repaymentFees,
         pool.state.normalizedAvailableDeposits,
@@ -599,7 +598,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       );
     } else {
       emit Repay(
-        poolHash,
+        msg.sender,
         normalizedRepayAmount,
         repaymentFees,
         pool.state.normalizedAvailableDeposits,
@@ -618,7 +617,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @param amount Amount of tokens that will be add up to the pool's liquidity rewards reserve
    **/
   function topUpLiquidityRewards(uint128 amount) external override whenNotPaused onlyRole(Roles.BORROWER_ROLE) {
-    Types.Pool storage pool = pools[borrowerAuthorizedPools[_msgSender()]];
+    Types.Pool storage pool = pools[msg.sender];
     uint128 normalizedAmount = amount.scaleToWad(pool.parameters.TOKEN_DECIMALS);
 
     pool.depositToYieldProvider(_msgSender(), normalizedAmount);
@@ -630,30 +629,30 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       pool.parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD
     ) {
       pool.state.active = true;
-      emit PoolActivated(pool.parameters.POOL_HASH);
+      emit PoolActivated(pool.parameters.OWNER);
     }
 
-    emit TopUpLiquidityRewards(borrowerAuthorizedPools[_msgSender()], normalizedAmount);
+    emit TopUpLiquidityRewards(msg.sender, normalizedAmount);
   }
 
   // PUBLIC METHODS
 
   /**
    * @notice Collect yield provider fees as well as liquidity rewards for the target tick
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function collectFeesForTick(bytes32 poolHash, uint128 rate) external override whenNotPaused {
-    Types.Pool storage pool = pools[poolHash];
+  function collectFeesForTick(address ownerAddress, uint128 rate) external override whenNotPaused {
+    Types.Pool storage pool = pools[ownerAddress];
     pool.collectFees(rate);
   }
 
   /**
    * @notice Collect yield provider fees as well as liquidity rewards for the whole pool
    * Iterates over all pool initialized ticks
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  function collectFees(bytes32 poolHash) external override whenNotPaused {
-    Types.Pool storage pool = pools[poolHash];
+  function collectFees(address ownerAddress) external override whenNotPaused {
+    Types.Pool storage pool = pools[ownerAddress];
     pool.collectFees();
   }
 }

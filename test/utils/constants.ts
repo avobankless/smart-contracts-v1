@@ -1,7 +1,6 @@
 import {BigNumber} from 'ethers';
 import {parseEther, toUtf8Bytes} from 'ethers/lib/utils';
 
-import {defaultAbiCoder} from '@ethersproject/abi';
 import {keccak256} from '@ethersproject/keccak256';
 
 export const WAD = parseEther('1');
@@ -10,10 +9,9 @@ export const TEST_RETURN_YIELD_PROVIDER_LR_RAY =
   WAD.mul(2).mul(
     1e9
   ); /* liquidity ratio set with yield provider's liquidity ratio expressed in RAY*/
-export const borrowerName = 'ABCCORP';
-export const poolHash = keccak256(
-  defaultAbiCoder.encode(['string'], [borrowerName])
-);
+// export const borrowerAddress = '0xfd94B585517d532BC4B80E35bC26383E7834f8b9';
+
+export const poolHash = '0xfd94B585517d532BC4B80E35bC26383E7834f8b9';
 export const minRateInput = parseEther('0.05'); // min rate 5% for new pool creation
 export const maxRateInput = parseEther('0.2'); // max rate 20% for new pool creation
 export const rateSpacingInput = parseEther('0.005'); // rate spacing 0.5% for new pool creation

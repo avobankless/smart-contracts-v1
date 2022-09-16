@@ -14,7 +14,7 @@ interface IPositionManager {
    * @param tokenId The tokenId of the position
    * @param amount The amount of deposited token
    * @param rate The position bidding rate
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param bondsIssuanceIndex The borrow period assigned to the position
    **/
   event Deposit(
@@ -22,7 +22,7 @@ interface IPositionManager {
     uint128 tokenId,
     uint128 amount,
     uint128 rate,
-    bytes32 poolHash,
+    address ownerAddress,
     uint128 bondsIssuanceIndex
   );
 
@@ -32,9 +32,9 @@ interface IPositionManager {
    * @param tokenId The tokenId of the position
    * @param amount The amount of deposited token plus their accrued interests
    * @param rate The new rate required by lender to lend their deposited token
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
-  event UpdateRate(address indexed lender, uint128 tokenId, uint128 amount, uint128 rate, bytes32 poolHash);
+  event UpdateRate(address indexed lender, uint128 tokenId, uint128 amount, uint128 rate, address ownerAddress);
 
   /**
    * @notice Emitted when #withdraw is called and is a success
@@ -42,7 +42,7 @@ interface IPositionManager {
    * @param tokenId The tokenId of the position
    * @param amount The amount of tokens withdrawn
    * @param rate The position bidding rate
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    **/
   event Withdraw(
     address indexed lender,
@@ -50,7 +50,7 @@ interface IPositionManager {
     uint128 amount,
     uint128 remainingBonds,
     uint128 rate,
-    bytes32 poolHash
+    address ownerAddress
   );
 
   /**
@@ -62,7 +62,7 @@ interface IPositionManager {
   /**
    * @notice Emitted when #withdraw is called and is a success
    * @param tokenId The tokenId of the position
-   * @return poolHash The identifier of the pool
+   * @return ownerAddress The identifier of the pool
    * @return adjustedBalance Adjusted balance of the position original deposit
    * @return rate Position bidding rate
    * @return underlyingToken Address of the tokens the position contains
@@ -74,7 +74,7 @@ interface IPositionManager {
     external
     view
     returns (
-      bytes32 poolHash,
+      address ownerAddress,
       uint128 adjustedBalance,
       uint128 rate,
       address underlyingToken,
@@ -102,14 +102,14 @@ interface IPositionManager {
    * @param to The address for which the position is created
    * @param amount The amount of tokens to be deposited
    * @param rate The rate at which to bid for a bonds
-   * @param poolHash The identifier of the pool
+   * @param ownerAddress The identifier of the pool
    * @param underlyingToken The contract address of the token to be deposited
    **/
   function deposit(
     address to,
     uint128 amount,
     uint128 rate,
-    bytes32 poolHash,
+    address ownerAddress,
     address underlyingToken
   ) external returns (uint128 tokenId);
 

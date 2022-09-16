@@ -29,7 +29,7 @@ contract FlashLoanAttacker is IERC721ReceiverUpgradeable {
     uint128 amount,
     uint128 rate,
     uint128 rateSpacing,
-    bytes32 borrower,
+    address borrower,
     address underlyingToken
   ) external {
     uint128 tokenId = PositionManager(position).deposit(address(this), amount, rate, borrower, underlyingToken);
@@ -39,7 +39,7 @@ contract FlashLoanAttacker is IERC721ReceiverUpgradeable {
   function attackWithdraw(
     uint128 amount,
     uint128 rate,
-    bytes32 borrower,
+    address borrower,
     address underlyingToken
   ) external {
     PositionManager(position).deposit(address(this), amount, rate, borrower, underlyingToken);
