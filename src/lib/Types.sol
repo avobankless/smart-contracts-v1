@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
-import "../extensions/AaveILendingPool.sol";
+import "../extensions/YearnFinanceWrapper.sol";
 
 library Types {
   struct PositionDetails {
@@ -35,7 +35,7 @@ library Types {
     address OWNER;
     address UNDERLYING_TOKEN;
     uint8 TOKEN_DECIMALS;
-    ILendingPool YIELD_PROVIDER;
+    YearnFinanceWrapper YIELD_PROVIDER;
     uint128 MIN_RATE;
     uint128 MAX_RATE;
     uint128 RATE_SPACING;

@@ -1,5 +1,7 @@
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
+import '@nomiclabs/hardhat-vyper';
+import '@openzeppelin/hardhat-upgrades';
 import '@primitivefi/hardhat-dodoc';
 import '@typechain/hardhat';
 import 'dotenv/config';
@@ -8,6 +10,7 @@ import 'hardhat-contract-sizer';
 import 'hardhat-deploy';
 import 'hardhat-gas-reporter';
 import 'hardhat-interface-generator';
+import 'hardhat-tracer';
 import 'solidity-coverage';
 require('hardhat-contract-sizer');
 
@@ -42,7 +45,19 @@ const config: HardhatUserConfig = {
           evmVersion: 'istanbul',
         },
       },
+      {
+        version: '0.6.13',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
     ],
+  },
+  vyper: {
+    version: '0.2.12',
   },
   namedAccounts: {
     deployer: {

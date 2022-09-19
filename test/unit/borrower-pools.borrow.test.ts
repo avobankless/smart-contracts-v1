@@ -1,8 +1,9 @@
+import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import {MockContract} from 'ethereum-waffle';
 import {BigNumber} from 'ethers';
 import {deployments, ethers} from 'hardhat';
 
-import {BorrowerPools} from '../../typechain';
+import {BorrowerPools, Token1, YearnFinanceWrapper} from '../../typechain';
 import {
   checkPoolUtil,
   checkPositionRepartitionUtil,
@@ -13,7 +14,6 @@ import {
 import {
   FIRST_BOND_ISSUANCE_INDEX,
   NEXT_BOND_ISSUANCE_INDEX,
-  TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
 } from '../utils/constants';
 import {PoolParameters, User} from '../utils/types';
@@ -26,9 +26,12 @@ const setup = deployments.createFixture(async () => {
 
 describe('Borrower Pools - Borrow', async function () {
   let positionManager: User, borrower: User, governanceUser: User;
+  let positionManagerSigner: SignerWithAddress;
   let BorrowerPools: BorrowerPools;
+  let poolTokenContract: Token1;
+  let yearnFinanceWrapper: YearnFinanceWrapper;
   let poolParameters: PoolParameters;
-  let mockLendingPool: MockContract;
+  let mockYearn: MockContract;
   let depositRate: BigNumber,
     minRate: BigNumber,
     rateSpacing: BigNumber,
@@ -47,6 +50,8 @@ describe('Borrower Pools - Borrow', async function () {
   beforeEach(async () => {
     const {deployer, mocks, users} = await setup();
     const {
+      deployedToken1,
+      deployedYearnFinanceWrapper,
       deployedBorrowerPools,
       governance,
       testBorrower,
@@ -54,6 +59,7 @@ describe('Borrower Pools - Borrow', async function () {
       poolTokenAddress,
     } = await setupTestContracts(deployer, mocks, users);
     BorrowerPools = deployedBorrowerPools;
+    poolTokenContract = deployedToken1;
     poolParameters = await BorrowerPools.getPoolParameters(
       testBorrower.address
     );
@@ -70,7 +76,9 @@ describe('Borrower Pools - Borrow', async function () {
     checkPoolState = checkPoolUtil(borrower);
     checkPositionRepartition = checkPositionRepartitionUtil(borrower);
     checkTickAmounts = checkTickUtil(borrower);
-    mockLendingPool = mocks.ILendingPool;
+    mockYearn = mocks.YearnFinanceWrapper;
+    yearnFinanceWrapper = deployedYearnFinanceWrapper;
+    positionManagerSigner = await ethers.getSigner(positionManager.address);
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
@@ -101,6 +109,7 @@ describe('Borrower Pools - Borrow', async function () {
     await expect(
       governanceUser.BorrowerPools.setDefault(borrower.address)
     ).to.emit(governanceUser.BorrowerPools, 'Default');
+
     await expect(
       borrower.BorrowerPools.borrow(borrower.address, depositAmount)
     ).to.revertedWith('BP_POOL_DEFAULTED');
@@ -205,13 +214,13 @@ describe('Borrower Pools - Borrow', async function () {
       normalizedBorrowedAmount: borrowAmount,
     });
     await checkTickAmounts(borrower.address, depositRate, {
-      adjustedTotalAmount: depositAmount.div(2),
+      adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
   });
-  it('Borrowing from subsequent multiple ticks should update the ticks data accordingly', async function () {
+  it.only('Borrowing from subsequent multiple ticks should update the ticks data accordingly', async function () {
     const borrowAmount = depositAmount.mul(2);
     const newDepositRate = depositRate.add(rateSpacing);
     await positionManager.BorrowerPools.deposit(
@@ -226,7 +235,7 @@ describe('Borrower Pools - Borrow', async function () {
       {
         ownerAddress: borrower.address,
         rate: depositRate,
-        adjustedAmount: depositAmount.div(2),
+        adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
       },
       {
@@ -784,10 +793,9 @@ describe('Borrower Pools - Borrow', async function () {
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
 
-    await mockLendingPool.mock.getReserveNormalizedIncome.returns(
-      TEST_RETURN_YIELD_PROVIDER_LR_RAY.mul(2)
+    await yearnFinanceWrapper.getReserveNormalizedIncome(
+      '0x5f25FEF2a34D7F1E3e330830060AaBaA3eD14009'
     );
-
     await expect(
       borrower.BorrowerPools.borrow(borrower.address, borrowAmount.mul(2))
     ).to.emit(borrower.BorrowerPools, 'FurtherBorrow');
@@ -904,8 +912,8 @@ describe('Borrower Pools - Borrow', async function () {
       }
     );
 
-    await mockLendingPool.mock.getReserveNormalizedIncome.returns(
-      TEST_RETURN_YIELD_PROVIDER_LR_RAY.mul(2)
+    await yearnFinanceWrapper.getReserveNormalizedIncome(
+      '0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9'
     );
     await expect(
       borrower.BorrowerPools.borrow(borrower.address, borrowAmount.mul(3))

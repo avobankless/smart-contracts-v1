@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 
 import "./interfaces/IBorrowerPools.sol";
 
-import "./extensions/AaveILendingPool.sol";
 import "./lib/Errors.sol";
 import "./lib/PoolLogic.sol";
 import "./lib/Scaling.sol";
@@ -41,7 +40,12 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @param rate The tick rate from which to extract the liquidity ratio
    * @return liquidityRatio The liquidity ratio of the given tick
    **/
-  function getTickLiquidityRatio(address ownerAddress, uint128 rate) public view override returns (uint128 liquidityRatio) {
+  function getTickLiquidityRatio(address ownerAddress, uint128 rate)
+    public
+    view
+    override
+    returns (uint128 liquidityRatio)
+  {
     liquidityRatio = pools[ownerAddress].ticks[rate].atlendisLiquidityRatio;
     if (liquidityRatio == 0) {
       liquidityRatio = uint128(PoolLogic.RAY);
@@ -169,9 +173,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       normalizedBorrowedAmount = pool.parameters.MAX_BORROWABLE_AMOUNT;
     }
 
-    uint128 yieldProviderLiquidityRatio = uint128(
-      parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(parameters.UNDERLYING_TOKEN))
-    );
+    uint128 yieldProviderLiquidityRatio = uint128(parameters.YIELD_PROVIDER.getReserveNormalizedIncome());
     uint128 rate = pool.parameters.MIN_RATE;
     uint128 normalizedRemainingAmount = normalizedBorrowedAmount;
     uint128 amountWeightedRate = 0;
@@ -210,9 +212,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     uint128 bondsIssuanceIndex
   ) public view override returns (uint128 bondsQuantity, uint128 normalizedDepositedAmount) {
     Types.Pool storage pool = pools[ownerAddress];
-    uint128 yieldProviderLiquidityRatio = uint128(
-      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
-    );
+    uint128 yieldProviderLiquidityRatio = uint128(pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome());
 
     if (bondsIssuanceIndex > pool.state.currentBondsIssuanceIndex) {
       return (0, adjustedAmount.wadRayMul(yieldProviderLiquidityRatio));
@@ -489,12 +489,14 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     // collectFees should be called before changing pool global state as fee collection depends on it
     pool.collectFees();
 
+    uint128 availableDeposits = pool.state.normalizedAvailableDeposits;
     if (normalizedLoanAmount > pool.state.normalizedAvailableDeposits) {
       revert Errors.BP_BORROW_OUT_OF_BOUND_AMOUNT();
     }
 
     uint128 remainingAmount = normalizedLoanAmount;
     uint128 currentInterestRate = pool.state.lowerInterestRate - pool.parameters.RATE_SPACING;
+
     while (remainingAmount > 0 && currentInterestRate < pool.parameters.MAX_RATE) {
       currentInterestRate += pool.parameters.RATE_SPACING;
       if (pool.ticks[currentInterestRate].adjustedRemainingAmount > 0) {
@@ -510,7 +512,6 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     if (pool.state.currentMaturity == 0) {
       pool.state.currentMaturity = uint128(block.timestamp + pool.parameters.LOAN_DURATION);
       emit Borrow(msg.sender, normalizedBorrowedAmount, normalizedEstablishmentFee);
-
     } else {
       emit FurtherBorrow(msg.sender, normalizedBorrowedAmount, normalizedEstablishmentFee);
     }
@@ -529,7 +530,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    **/
   function repay() external override whenNotPaused onlyRole(Roles.BORROWER_ROLE) {
     Types.Pool storage pool = pools[msg.sender];
-    
+
     if (pool.state.currentMaturity == 0 && pool.state.defaulted != true) {
       revert Errors.BP_REPAY_NO_ACTIVE_LOAN();
     }

@@ -1,5 +1,13 @@
 import {BigNumber} from 'ethers';
-import {BorrowerPools, PositionManager} from '../../../typechain';
+import {parseEther} from 'ethers/lib/utils';
+import {ethers} from 'hardhat';
+
+import {
+  BorrowerPools,
+  PositionManager,
+  Token1,
+  YearnFinanceWrapper,
+} from '../../../typechain';
 import {setupUser} from '../../utils';
 import {
   cooldownPeriod,
@@ -17,7 +25,6 @@ import {
   rateSpacingInput,
   repaymentFeeRate,
   repaymentPeriod,
-  TEST_RETURN_YIELD_PROVIDER_LR_RAY,
 } from '../../utils/constants';
 import {Mocks, User} from '../../utils/types';
 
@@ -29,7 +36,9 @@ export const setupTestContracts = async (
   users: any,
   customLateRepayFeePerBondRate?: BigNumber
 ): Promise<{
+  deployedYearnFinanceWrapper: YearnFinanceWrapper;
   deployedBorrowerPools: BorrowerPools;
+  deployedToken1: Token1;
   deployedPositionManager: PositionManager;
   governance: User;
   testUser1: User;
@@ -55,17 +64,17 @@ export const setupTestContracts = async (
     deployedPositionManagerDescriptor.address
   );
 
-  await mocks.ILendingPool.mock.deposit.returns();
-  await mocks.ILendingPool.mock.withdraw.returns(
-    1 /* uint256 corresponding to withdrawn amount*/
-  );
-  await mocks.ILendingPool.mock.getReserveNormalizedIncome.returns(
-    TEST_RETURN_YIELD_PROVIDER_LR_RAY
-  );
-  await mocks.DepositToken1.mock.allowance.returns(maxBorrowableAmount);
-  await mocks.DepositToken1.mock.approve.returns(true);
-  await mocks.DepositToken1.mock.transferFrom.returns(true);
-  await mocks.DepositToken1.mock.decimals.returns(18);
+  const deployedToken1 = await deployer.Token1F.deploy();
+  const testPositionManager = await setupUser(users[4].address, {
+    PoolToken: deployedToken1,
+    BorrowerPools: deployedBorrowerPools,
+    PositionManager: deployedPositionManager,
+  });
+  await deployedToken1.mint(testPositionManager.address, parseEther('10000'));
+  await deployedToken1
+    .connect(await ethers.getSigner(testPositionManager.address))
+    .increaseAllowance(deployedBorrowerPools.address, parseEther('10000'));
+
   await mocks.DepositToken2.mock.decimals.returns(18);
 
   await deployedBorrowerPools.grantRole(
@@ -84,10 +93,32 @@ export const setupTestContracts = async (
     PositionManager: deployedPositionManager,
   });
 
+  const vault = await deployer.VaultF.deploy(
+    deployedToken1.address,
+    deployer.address,
+    deployer.address,
+    'Test Vault',
+    'TV',
+    deployer.address,
+    deployer.address
+  );
+  await vault.setDepositLimit(1000000000000000000000000000000000000000000000n);
+
+  const yearnRegistry = await deployer.YearnRegistryF.deploy();
+  await yearnRegistry.newVault(deployedToken1.address, vault.address);
+
+  const deployedYearnFinanceWrapper =
+    await deployer.YearnFinanceWrapperF.deploy(
+      deployedToken1.address,
+      yearnRegistry.address,
+      'Test',
+      'TEST'
+    );
+
   await testBorrower.BorrowerPools.createNewPool({
     poolOwner: testBorrower.address,
-    underlyingToken: mocks.DepositToken1.address,
-    yieldProvider: mocks.ILendingPool.address,
+    underlyingToken: deployedToken1.address,
+    yieldProvider: deployedYearnFinanceWrapper.address,
     minRate: minRateInput,
     maxRate: maxRateInput,
     rateSpacing: rateSpacingInput,
@@ -115,24 +146,18 @@ export const setupTestContracts = async (
     PositionManager: deployedPositionManager,
   });
 
-  // await governance.BorrowerPools.allow(
-  //   testBorrower.address,
-  //   governance.address
-  // );
-
-  const testPositionManager = await setupUser(users[4].address, {
-    BorrowerPools: deployedBorrowerPools,
-    PositionManager: deployedPositionManager,
-  });
   await deployedBorrowerPools.grantRole(
     POSITION_ROLE,
     testPositionManager.address
   );
+  await deployedBorrowerPools.grantRole(POSITION_ROLE, deployer.address);
 
-  const poolTokenAddress = mocks.DepositToken1.address;
+  const poolTokenAddress = deployedToken1.address;
   const otherTokenAddress = mocks.DepositToken2.address;
 
   return {
+    deployedYearnFinanceWrapper,
+    deployedToken1,
     deployedBorrowerPools,
     deployedPositionManager,
     governance,

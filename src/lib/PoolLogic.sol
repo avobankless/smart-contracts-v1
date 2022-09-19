@@ -8,7 +8,7 @@ import {Scaling} from "./Scaling.sol";
 import {Uint128WadRayMath} from "./Uint128WadRayMath.sol";
 import "./Types.sol";
 import "./Errors.sol";
-import "../extensions/AaveILendingPool.sol";
+import "../extensions/YearnFinanceWrapper.sol";
 
 library PoolLogic {
   event PoolActivated(address ownerAddress);
@@ -188,6 +188,8 @@ library PoolLogic {
     // if there is no ongoing loan, the deposited amount goes to total and remaining
     // amount and can be borrowed instantaneously
     else {
+      uint128 atlendisLiquidityRatio = tick.atlendisLiquidityRatio;
+      ("atlendisLiquidityRatio", atlendisLiquidityRatio);
       adjustedAmount = normalizedAmount.wadRayDiv(tick.atlendisLiquidityRatio);
       tick.adjustedTotalAmount += adjustedAmount;
       tick.adjustedRemainingAmount += adjustedAmount;
@@ -450,7 +452,7 @@ library PoolLogic {
     returns (uint128 yieldProviderLiquidityRatio)
   {
     yieldProviderLiquidityRatio = uint128(
-      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
+      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome()
     );
     pool.state.remainingAdjustedLiquidityRewardsReserve += normalizedAmount.wadRayDiv(yieldProviderLiquidityRatio);
   }
@@ -463,7 +465,7 @@ library PoolLogic {
     uint128 currentInterestRate = pool.state.lowerInterestRate;
 
     uint128 yieldProviderLiquidityRatio = uint128(
-      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
+      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome()
     );
 
     distributedLiquidityRewards = pool.state.remainingAdjustedLiquidityRewardsReserve.wadRayMul(
@@ -491,6 +493,7 @@ library PoolLogic {
     uint128 yieldProviderLiquidityRatio
   ) internal {
     Types.Tick storage tick = pool.ticks[rate];
+    ("interestRate", rate);
     if (tick.lastFeeDistributionTimestamp < block.timestamp) {
       (
         uint128 updatedAtlendisLiquidityRatio,
@@ -498,7 +501,6 @@ library PoolLogic {
         uint128 liquidityRewardsIncrease,
         uint128 yieldProviderLiquidityRatioIncrease
       ) = pool.peekFeesForTick(rate, yieldProviderLiquidityRatio);
-
       // update global deposited amount
       pool.state.remainingAdjustedLiquidityRewardsReserve -= liquidityRewardsIncrease.wadRayDiv(
         yieldProviderLiquidityRatio
@@ -530,16 +532,18 @@ library PoolLogic {
 
   function collectFees(Types.Pool storage pool, uint128 rate) internal {
     uint128 yieldProviderLiquidityRatio = uint128(
-      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
+      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome()
     );
+    ("0yieldProviderLiquidityRatio", yieldProviderLiquidityRatio);
     pool.collectFeesForTick(rate, yieldProviderLiquidityRatio);
     pool.ticks[rate].yieldProviderLiquidityRatio = yieldProviderLiquidityRatio;
   }
 
   function collectFees(Types.Pool storage pool) internal {
     uint128 yieldProviderLiquidityRatio = uint128(
-      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
+      pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome()
     );
+    ("!! yieldProviderLiquidityRatio", yieldProviderLiquidityRatio);
     for (
       uint128 currentInterestRate = pool.state.lowerInterestRate;
       currentInterestRate <= pool.parameters.MAX_RATE;
@@ -583,6 +587,8 @@ library PoolLogic {
     } else {
       referenceLiquidityRatio = tick.yieldProviderLiquidityRatio;
     }
+    ("referenceLiquidityRatio", referenceLiquidityRatio);
+    ("yieldProviderLiquidityRatio", yieldProviderLiquidityRatio);
     yieldProviderLiquidityRatioIncrease = yieldProviderLiquidityRatio - referenceLiquidityRatio;
 
     // get additional fees from liquidity rewards
@@ -607,6 +613,7 @@ library PoolLogic {
         tick.adjustedRemainingAmount.wadRayMul(yieldProviderLiquidityRatioIncrease) +
         liquidityRewardsIncrease;
     }
+    uint128 yearnLiquidity = pool.state.yieldProviderLiquidityRatio;
   }
 
   /**
@@ -641,9 +648,9 @@ library PoolLogic {
   ) public {
     IERC20Upgradeable underlyingToken = IERC20Upgradeable(pool.parameters.UNDERLYING_TOKEN);
     uint128 scaledAmount = normalizedAmount.scaleFromWad(pool.parameters.TOKEN_DECIMALS);
-    ILendingPool yieldProvider = pool.parameters.YIELD_PROVIDER;
+    YearnFinanceWrapper yieldProvider = pool.parameters.YIELD_PROVIDER;
     underlyingToken.safeIncreaseAllowance(address(yieldProvider), scaledAmount);
     underlyingToken.safeTransferFrom(from, address(this), scaledAmount);
-    yieldProvider.deposit(pool.parameters.UNDERLYING_TOKEN, scaledAmount, address(this), 0);
+    yieldProvider.deposit(scaledAmount);
   }
 }

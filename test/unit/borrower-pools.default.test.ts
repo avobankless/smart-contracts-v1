@@ -208,7 +208,7 @@ describe('Borrower Pools - Default', function () {
     //   'BP_POOL_DEFAULTED'
     // );
   });
-  it.only('Defaulting a pool should distribute the remaining liquidity rewards reserve to bonds holders on a single tick', async function () {
+  it('Defaulting a pool should distribute the remaining liquidity rewards reserve to bonds holders on a single tick', async function () {
     const borrowAmount = depositAmount;
     await positionManager.BorrowerPools.deposit(
       depositRate,

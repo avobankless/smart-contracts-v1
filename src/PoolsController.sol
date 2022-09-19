@@ -8,7 +8,6 @@ import {PoolLogic} from "./lib/PoolLogic.sol";
 import {Scaling} from "./lib/Scaling.sol";
 import {Uint128WadRayMath} from "./lib/Uint128WadRayMath.sol";
 
-import "./extensions/AaveILendingPool.sol";
 import "./extensions/IERC20PartialDecimals.sol";
 import "./lib/Errors.sol";
 import "./lib/Roles.sol";
@@ -21,7 +20,7 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
   using Scaling for uint128;
   using Uint128WadRayMath for uint128;
 
-// borrower address to pool hash
+  // borrower address to pool hash
   mapping(address => address) public borrowerAuthorizedPools;
   // interest rate pool. Each address can have only one pool
   mapping(address => Types.Pool) internal pools;
@@ -243,19 +242,15 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD: params.liquidityRewardsActivationThreshold,
       EARLY_REPAY: params.earlyRepay
     });
-    pools[msg.sender].state.yieldProviderLiquidityRatio = uint128(
-      params.yieldProvider.getReserveNormalizedIncome(address(params.underlyingToken))
-    );
+    pools[msg.sender].state.yieldProviderLiquidityRatio = uint128(params.yieldProvider.getReserveNormalizedIncome());
 
     borrowerAuthorizedPools[msg.sender] = msg.sender;
     emit PoolCreated(params);
-
 
     if (pools[msg.sender].parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD == 0) {
       pools[msg.sender].state.active = true;
       emit PoolActivated(pools[msg.sender].parameters.OWNER);
     }
-    
   }
 
   /**
@@ -272,16 +267,12 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (pools[msg.sender].parameters.OWNER != address(0)) {
       revert Errors.PC_POOL_ALREADY_SET_FOR_BORROWER();
     }
-    uint256 yieldProviderLiquidityRatio = params.yieldProvider.getReserveNormalizedIncome(params.underlyingToken);
-    if (yieldProviderLiquidityRatio < PoolLogic.RAY) {
-      revert Errors.PC_POOL_TOKEN_NOT_SUPPORTED();
-    }
     if (params.establishmentFeeRate > PoolLogic.WAD) {
       revert Errors.PC_ESTABLISHMENT_FEES_TOO_HIGH();
     }
   }
 
-/**
+  /**
    * @notice Allow an address to interact with a borrower pool
    * @param borrowerAddress The address to allow
    * @param ownerAddress The identifier of the pool
@@ -293,10 +284,10 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (borrowerAddress == address(0)) {
       revert Errors.PC_ZERO_ADDRESS();
     }
-    if (pools[ownerAddress].parameters.OWNER!= ownerAddress) {
+    if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    if(borrowerAddress != pools[ownerAddress].parameters.OWNER){
+    if (borrowerAddress != pools[ownerAddress].parameters.OWNER) {
       revert Errors.PC_BORROWER_NOT_OWNER();
     }
     borrowerAuthorizedPools[borrowerAddress] = ownerAddress;
@@ -318,7 +309,7 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (pools[ownerAddress].parameters.OWNER != ownerAddress) {
       revert Errors.PC_POOL_NOT_ACTIVE();
     }
-    if(borrowerAddress != pools[ownerAddress].parameters.OWNER){
+    if (borrowerAddress != pools[ownerAddress].parameters.OWNER) {
       revert Errors.PC_BORROWER_NOT_OWNER();
     }
     revokeRole(Roles.BORROWER_ROLE, borrowerAddress);
@@ -346,11 +337,9 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     pool.state.defaultTimestamp = uint128(block.timestamp);
     uint128 distributedLiquidityRewards = pool.distributeLiquidityRewards();
 
-uint128 remainingNormalizedLiquidityRewardsReserve = 0;
+    uint128 remainingNormalizedLiquidityRewardsReserve = 0;
     if (pool.state.remainingAdjustedLiquidityRewardsReserve > 0) {
-      uint128 yieldProviderLiquidityRatio = uint128(
-        pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome(address(pool.parameters.UNDERLYING_TOKEN))
-      );
+      uint128 yieldProviderLiquidityRatio = uint128(pool.parameters.YIELD_PROVIDER.getReserveNormalizedIncome());
       remainingNormalizedLiquidityRewardsReserve = pool.state.remainingAdjustedLiquidityRewardsReserve.wadRayMul(
         yieldProviderLiquidityRatio
       );
@@ -361,7 +350,6 @@ uint128 remainingNormalizedLiquidityRewardsReserve = 0;
         remainingNormalizedLiquidityRewardsReserve.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
         msg.sender
       );
-
     }
     emit Default(ownerAddress, distributedLiquidityRewards);
   }

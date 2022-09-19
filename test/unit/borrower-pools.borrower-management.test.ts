@@ -51,7 +51,6 @@ describe('Borrower Pools - Governance functions', function () {
     await mockLendingPool.mock.getReserveNormalizedIncome.returns(
       parseEther('1000000000').sub(1)
     );
-    console.log('otherToken', otherToken);
     await expect(
       governanceUser.BorrowerPools.createNewPool({
         poolOwner: user1.address,

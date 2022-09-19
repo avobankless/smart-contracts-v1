@@ -195,7 +195,7 @@ interface IPoolsController {
   struct PoolCreationParams {
     address poolOwner;
     address underlyingToken;
-    ILendingPool yieldProvider;
+    YearnFinanceWrapper yieldProvider;
     uint128 minRate;
     uint128 maxRate;
     uint128 rateSpacing;

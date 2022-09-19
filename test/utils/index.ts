@@ -15,11 +15,16 @@ import {
   BorrowerPools,
   BorrowerPools__factory,
   FlashLoanAttacker__factory,
+  MockYearnRegistry__factory,
   PoolLogic__factory,
   PositionDescriptor,
   PositionDescriptor__factory,
   PositionManager,
   PositionManager__factory,
+  Token1__factory,
+  Vault__factory,
+  // VaultDai__factory,
+  YearnFinanceWrapper__factory,
 } from '../../typechain';
 import {secondsPerYear, WAD} from './constants';
 import {User} from './types';
@@ -55,14 +60,21 @@ export async function setupFixture(fixtureName: string) {
   const Position = await artifacts.readArtifact('PositionManager');
   const BorrowerPools = await artifacts.readArtifact('BorrowerPools');
   const ILendingPool = await artifacts.readArtifact('ILendingPool');
+  // const YearnFinanceWrapper = await artifacts.readArtifact(
+  //   'YearnFinanceWrapper'
+  // );
 
-  const DepositToken1C = await deployMockContract(signerDeployer, ERC20.abi);
   const DepositToken2C = await deployMockContract(signerDeployer, ERC20.abi);
   const PositionC = await deployMockContract(signerDeployer, Position.abi);
   const ILendingPoolC = await deployMockContract(
     signerDeployer,
     ILendingPool.abi
   );
+  // const YearnFinanceWrapperC = await deployMockContract(
+  //   signerDeployer,
+  //   YearnFinanceWrapper.abi
+  // );
+
   const BorrowerPoolsC = await deployMockContract(
     signerDeployer,
     BorrowerPools.abi
@@ -74,6 +86,19 @@ export async function setupFixture(fixtureName: string) {
   const poolLogic = await PoolLogicFactory.deploy();
 
   const contracts: any = {
+    VaultF: <Vault__factory>await ethers.getContractFactory('Vault'),
+    // VaultDai: <VaultDai__factory>await ethers.getContractFactory('VaultDai'),
+
+    YearnRegistryF: <MockYearnRegistry__factory>(
+      await ethers.getContractFactory('MockYearnRegistry')
+    ),
+
+    YearnFinanceWrapperF: <YearnFinanceWrapper__factory>(
+      await ethers.getContractFactory('YearnFinanceWrapper')
+    ),
+
+    Token1F: <Token1__factory>await ethers.getContractFactory('Token1'),
+
     BorrowerPools: <BorrowerPools>await ethers.getContract('BorrowerPools'),
     BorrowerPoolsF: <BorrowerPools__factory>await ethers.getContractFactory(
       'BorrowerPools',
@@ -102,11 +127,11 @@ export async function setupFixture(fixtureName: string) {
   return {
     ...contracts,
     mocks: {
-      DepositToken1: DepositToken1C,
       DepositToken2: DepositToken2C,
       PositionManager: PositionC,
       BorrowerPools: BorrowerPoolsC,
       ILendingPool: ILendingPoolC,
+      // YearnFinanceWrapper: YearnFinanceWrapperC,
     },
     users,
     deployer: await setupUser(deployer, contracts),
@@ -239,6 +264,7 @@ export function checkPoolUtil(borrower: User) {
         `remainingLiquidityRewardsReserve : expected ${remainingAdjustedLiquidityRewardsReserve}, got ${poolState.remainingAdjustedLiquidityRewardsReserve}`
       ).to.be.true;
     }
+
     if (normalizedBorrowedAmount) {
       expect(
         poolState.normalizedBorrowedAmount

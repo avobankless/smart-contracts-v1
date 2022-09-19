@@ -17,7 +17,6 @@ import {
 import {
   FIRST_BOND_ISSUANCE_INDEX,
   NEXT_BOND_ISSUANCE_INDEX,
-  poolHash,
   RAY,
   TEST_RETURN_YIELD_PROVIDER_LR_RAY,
   WAD,
@@ -62,7 +61,8 @@ describe('Borrower Pools - Withdraw', function () {
     } = await setupTestContracts(deployer, mocks, users);
     BorrowerPools = deployedBorrowerPools;
     mockLendingPool = mocks.ILendingPool;
-    poolParameters = await BorrowerPools.getPoolParameters(poolHash);
+    borrower = testBorrower;
+    poolParameters = await BorrowerPools.getPoolParameters(borrower.address);
     minRate = poolParameters.minRate;
     rateSpacing = poolParameters.rateSpacing;
     loanDuration = poolParameters.loanDuration;
@@ -70,7 +70,6 @@ describe('Borrower Pools - Withdraw', function () {
     maxBorrowableAmount = poolParameters.maxBorrowableAmount;
     depositRate = minRate.add(rateSpacing); //Tokens deposited at the min_rate + rate_spacing
     positionManager = testPositionManager;
-    borrower = testBorrower;
     governanceUser = governance;
     poolToken = poolTokenAddress;
     checkPoolState = checkPoolUtil(borrower);
@@ -85,7 +84,7 @@ describe('Borrower Pools - Withdraw', function () {
     );
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         depositAmount,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -96,7 +95,7 @@ describe('Borrower Pools - Withdraw', function () {
   it('Withdrawing with a user without positionManager role should revert', async function () {
     await expect(
       borrower.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         depositAmount,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -109,7 +108,7 @@ describe('Borrower Pools - Withdraw', function () {
   it('Withdrawing before any deposit happened should revert', async function () {
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         depositAmount,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -120,14 +119,14 @@ describe('Borrower Pools - Withdraw', function () {
   it('Withdrawing zero amount should revert', async function () {
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         0,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -160,14 +159,14 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount,
       FIRST_BOND_ISSUANCE_INDEX
@@ -177,32 +176,32 @@ describe('Borrower Pools - Withdraw', function () {
     expect(amounts.remainingBondsQuantity.isZero()).to.be.true;
     expect(amounts.bondsMaturity.isZero()).to.be.true;
   });
-  it('Withdrawing an amount should update pool balances', async function () {
+  it.only('Withdrawing an amount should update pool balances', async function () {
     // withdraw amount is adjusted
     const withdrawAmount = depositAmount
       .mul(RAY)
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
-      withdrawAmount,
+      depositAmount,
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
@@ -216,7 +215,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -224,7 +223,7 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount,
       FIRST_BOND_ISSUANCE_INDEX
@@ -250,14 +249,14 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -275,11 +274,11 @@ describe('Borrower Pools - Withdraw', function () {
       .mul(oneSec)
       .mul(maxBorrowableAmount.sub(borrowAmount))
       .div(maxBorrowableAmount);
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount,
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: depositAmount,
@@ -287,7 +286,7 @@ describe('Borrower Pools - Withdraw', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -305,7 +304,7 @@ describe('Borrower Pools - Withdraw', function () {
     await ethers.provider.send('evm_mine', []);
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount,
       FIRST_BOND_ISSUANCE_INDEX
@@ -313,7 +312,7 @@ describe('Borrower Pools - Withdraw', function () {
     expect(amounts.adjustedAmountToWithdraw.eq(withdrawAmount.div(2))).to.be
       .true;
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       amounts.adjustedAmountToWithdraw,
       FIRST_BOND_ISSUANCE_INDEX,
@@ -329,7 +328,7 @@ describe('Borrower Pools - Withdraw', function () {
       .mul(maxBorrowableAmount.sub(depositAmount))
       .div(maxBorrowableAmount);
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: [
         depositAmount.div(2).add(expectedLiquidityRewards.div(2)),
         depositAmount
@@ -338,7 +337,7 @@ describe('Borrower Pools - Withdraw', function () {
       ],
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.mul(3).div(4),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount,
@@ -351,7 +350,7 @@ describe('Borrower Pools - Withdraw', function () {
     // check for the second positionManager - should remain the same as before the first positionManager withdrawal
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -376,14 +375,14 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -396,11 +395,11 @@ describe('Borrower Pools - Withdraw', function () {
       depositRate,
       loanDuration
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount,
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: depositAmount,
@@ -408,7 +407,7 @@ describe('Borrower Pools - Withdraw', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -420,18 +419,18 @@ describe('Borrower Pools - Withdraw', function () {
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount.div(2),
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.mul(3).div(4),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount,
@@ -441,7 +440,7 @@ describe('Borrower Pools - Withdraw', function () {
     // check for the second positionManager - should remain the same as before the first positionManager withdrawal
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -453,18 +452,18 @@ describe('Borrower Pools - Withdraw', function () {
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount.div(2),
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
@@ -479,14 +478,14 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -494,7 +493,7 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount,
       FIRST_BOND_ISSUANCE_INDEX
@@ -518,14 +517,14 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -534,7 +533,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         withdrawAmount,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -549,7 +548,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -557,23 +556,23 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
@@ -581,7 +580,7 @@ describe('Borrower Pools - Withdraw', function () {
     });
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate.add(rateSpacing),
       withdrawAmount,
       NEXT_BOND_ISSUANCE_INDEX
@@ -598,7 +597,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -606,23 +605,23 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount,
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
@@ -630,18 +629,18 @@ describe('Borrower Pools - Withdraw', function () {
     });
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate.add(rateSpacing),
       withdrawAmount,
       NEXT_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
@@ -655,7 +654,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -663,7 +662,7 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -671,7 +670,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate.add(rateSpacing),
         withdrawAmount,
         FIRST_BOND_ISSUANCE_INDEX,
@@ -685,7 +684,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -693,7 +692,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         withdrawAmount,
         NEXT_BOND_ISSUANCE_INDEX,
@@ -707,7 +706,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -715,7 +714,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         withdrawAmount,
         NEXT_BOND_ISSUANCE_INDEX.add(1),
@@ -729,32 +728,32 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawAmount,
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount,
       lowerInterestRate: depositRate.add(rateSpacing),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
@@ -771,7 +770,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -779,32 +778,32 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawRemainingAmount,
       FIRST_BOND_ISSUANCE_INDEX
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       amounts.adjustedAmountToWithdraw,
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(4),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount.div(2),
@@ -812,18 +811,18 @@ describe('Borrower Pools - Withdraw', function () {
     });
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawPendingAmount,
       NEXT_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(4),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount.div(2),
@@ -840,7 +839,7 @@ describe('Borrower Pools - Withdraw', function () {
       .div(TEST_RETURN_YIELD_PROVIDER_LR_RAY);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -848,25 +847,25 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawPendingAmount,
       NEXT_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.div(2),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(4),
       normalizedUsedAmount: depositAmount.div(2),
@@ -874,25 +873,25 @@ describe('Borrower Pools - Withdraw', function () {
     });
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       withdrawRemainingAmount,
       FIRST_BOND_ISSUANCE_INDEX
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       amounts.adjustedAmountToWithdraw,
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: BigNumber.from(0),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(4),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: depositAmount.div(2),
@@ -903,14 +902,14 @@ describe('Borrower Pools - Withdraw', function () {
     const borrowAmount = depositAmount.mul(2);
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount.mul(2)
@@ -922,7 +921,7 @@ describe('Borrower Pools - Withdraw', function () {
       poolParameters.loanDuration.toNumber(),
     ]);
     await ethers.provider.send('evm_mine', []);
-    const currentMaturity = (await BorrowerPools.getPoolState(poolHash))
+    const currentMaturity = (await BorrowerPools.getPoolState(borrower.address))
       .currentMaturity;
     await expect(borrower.BorrowerPools.repay()).to.emit(
       borrower.BorrowerPools,
@@ -951,19 +950,19 @@ describe('Borrower Pools - Withdraw', function () {
       secondDepositExpectedBondsQuantity,
       depositRate.add(rateSpacing)
     );
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: realizedFirstExpectedBondsQuantity
         .add(realizedSecondExpectedBondsQuantity)
         .add(depositAmount),
       lowerInterestRate: depositRate,
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: BigNumber.from(0),
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount,
       normalizedUsedAmount: BigNumber.from(0),
@@ -971,7 +970,7 @@ describe('Borrower Pools - Withdraw', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate,
         adjustedAmount: depositAmount.div(2),
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -983,7 +982,7 @@ describe('Borrower Pools - Withdraw', function () {
     );
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate.add(rateSpacing),
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -996,32 +995,32 @@ describe('Borrower Pools - Withdraw', function () {
     );
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       depositAmount.div(2),
       FIRST_BOND_ISSUANCE_INDEX
     );
 
     await positionManager.BorrowerPools.withdraw(
-      poolHash,
+      borrower.address,
       depositRate,
       amounts.adjustedAmountToWithdraw,
       FIRST_BOND_ISSUANCE_INDEX,
       positionManager.address
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits:
         realizedSecondExpectedBondsQuantity.add(depositAmount),
       lowerInterestRate: depositRate.add(rateSpacing),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: BigNumber.from(0),
       adjustedRemainingAmount: BigNumber.from(0),
       normalizedUsedAmount: BigNumber.from(0),
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount,
       adjustedRemainingAmount: depositAmount,
       normalizedUsedAmount: BigNumber.from(0),
@@ -1029,7 +1028,7 @@ describe('Borrower Pools - Withdraw', function () {
     });
     await checkPositionRepartition(
       {
-        poolHash: poolHash,
+        ownerAddress: borrower.address,
         rate: depositRate.add(rateSpacing),
         adjustedAmount: depositAmount,
         bondsIssuanceIndex: FIRST_BOND_ISSUANCE_INDEX,
@@ -1044,7 +1043,7 @@ describe('Borrower Pools - Withdraw', function () {
   it('Withdrawing from several ticks after a yield provider lr update should not impact withdraw amounts', async function () {
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -1052,22 +1051,22 @@ describe('Borrower Pools - Withdraw', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
 
-    await checkPoolState(poolHash, {
+    await checkPoolState(borrower.address, {
       normalizedAvailableDeposits: depositAmount.mul(2),
     });
-    await checkTickAmounts(poolHash, depositRate, {
+    await checkTickAmounts(borrower.address, depositRate, {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: BigNumber.from(0),
       adjustedPendingDepositAmount: BigNumber.from(0),
     });
-    await checkTickAmounts(poolHash, depositRate.add(rateSpacing), {
+    await checkTickAmounts(borrower.address, depositRate.add(rateSpacing), {
       adjustedTotalAmount: depositAmount.div(2),
       adjustedRemainingAmount: depositAmount.div(2),
       normalizedUsedAmount: BigNumber.from(0),
@@ -1080,7 +1079,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate,
         depositAmount.div(2),
         FIRST_BOND_ISSUANCE_INDEX,
@@ -1089,7 +1088,7 @@ describe('Borrower Pools - Withdraw', function () {
     )
       .to.emit(positionManager.BorrowerPools, 'TickWithdrawRemaining')
       .withArgs(
-        poolHash,
+        borrower.address,
         depositRate,
         depositAmount.div(2),
         TEST_RETURN_YIELD_PROVIDER_LR_RAY.mul(2),
@@ -1098,7 +1097,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await expect(
       positionManager.BorrowerPools.withdraw(
-        poolHash,
+        borrower.address,
         depositRate.add(rateSpacing),
         depositAmount.div(2),
         FIRST_BOND_ISSUANCE_INDEX,
@@ -1107,7 +1106,7 @@ describe('Borrower Pools - Withdraw', function () {
     )
       .to.emit(positionManager.BorrowerPools, 'TickWithdrawRemaining')
       .withArgs(
-        poolHash,
+        borrower.address,
         depositRate.add(rateSpacing),
         depositAmount.div(2),
         TEST_RETURN_YIELD_PROVIDER_LR_RAY.mul(2),
@@ -1131,14 +1130,14 @@ describe('Borrower Pools - Withdraw', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
     );
     await positionManager.BorrowerPools.deposit(
       depositRate.add(rateSpacing),
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -1147,10 +1146,13 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
 
     const tickAdjustedAmounts =
-      await positionManager.BorrowerPools.getTickAmounts(poolHash, depositRate);
+      await positionManager.BorrowerPools.getTickAmounts(
+        borrower.address,
+        depositRate
+      );
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       tickAdjustedAmounts.adjustedTotalAmount,
       FIRST_BOND_ISSUANCE_INDEX
@@ -1182,7 +1184,7 @@ describe('Borrower Pools - Withdraw', function () {
 
     await positionManager.BorrowerPools.deposit(
       depositRate,
-      poolHash,
+      borrower.address,
       poolToken,
       positionManager.address,
       depositAmount
@@ -1191,10 +1193,13 @@ describe('Borrower Pools - Withdraw', function () {
     await borrower.BorrowerPools.borrow(borrower.address, borrowAmount);
 
     const tickAdjustedAmounts =
-      await positionManager.BorrowerPools.getTickAmounts(poolHash, depositRate);
+      await positionManager.BorrowerPools.getTickAmounts(
+        borrower.address,
+        depositRate
+      );
 
     const amounts = await positionManager.BorrowerPools.getWithdrawAmounts(
-      poolHash,
+      borrower.address,
       depositRate,
       tickAdjustedAmounts.adjustedTotalAmount,
       FIRST_BOND_ISSUANCE_INDEX

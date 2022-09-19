@@ -6,10 +6,11 @@ import {
   BorrowerPools,
   BorrowerPools__factory,
   FlashLoanAttacker,
-  PositionManager,
-  PositionManager__factory,
   PositionDescriptor,
   PositionDescriptor__factory,
+  PositionManager,
+  PositionManager__factory,
+  Token1,
 } from '../../typechain';
 
 export interface PoolParameters {
@@ -56,15 +57,17 @@ export type Deployer = {
 };
 
 export type Mocks = {
+  SafeERC20: MockContract;
   DepositToken1: MockContract;
   DepositToken2: MockContract;
   BorrowerPools: MockContract;
   ILendingPool: MockContract;
+  YearnFinanceWrapper: MockContract;
 };
 
 export type User = {
+  Token1?: Token1 | MockContract;
   address: string;
-  Token?: Contract;
   aToken?: Contract;
   BorrowerPools: BorrowerPools | MockContract;
   PositionDescriptor?: PositionDescriptor;
