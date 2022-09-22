@@ -226,7 +226,7 @@ contract StreamMoney is Ownable {
         );
 
         // start stream
-        cfaV1.createFlow(_receiver, superToken, _flowRate);
+        cfaV1.createFlow(_receiver, ISuperfluidToken(_superToken), int96(_flowRate));
         emit StreamInitiated(_superToken, msg.sender, _receiver, _flowRate);
     }
 
