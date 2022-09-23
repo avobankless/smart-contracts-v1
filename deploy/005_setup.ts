@@ -14,6 +14,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // keep ts support on hre members
   const {governance} = await getNamedAccounts();
+  console.log('🚀 ~ governance', governance);
   const {catchUnknownSigner, execute} = deployments;
 
   const BorrowerPoolsGovernance = <BorrowerPools>(

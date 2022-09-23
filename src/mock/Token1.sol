@@ -25,4 +25,8 @@ contract Token1 is ERC20("Token1", "T1") {
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
     }
+    
+    function decimals() public view virtual override returns (uint8) {
+        return 18;
+    }
 }

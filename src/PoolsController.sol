@@ -25,6 +25,8 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
   // interest rate pool. Each address can have only one pool
   mapping(address => Types.Pool) internal pools;
 
+  address[] public poolsAddresses;
+
   // protocol fees per pool
   mapping(address => uint128) internal protocolFees;
 
@@ -36,6 +38,15 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
   }
 
   // VIEW FUNCTIONS
+  
+  /**
+    * @notice Returns all the pools created
+    * @return pools array with pools created
+    **/
+
+  function getPools() external view returns (address[] memory) {
+    return poolsAddresses;
+  }
 
   /**
    * @notice Returns the parameters of a pool
@@ -70,7 +81,9 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       uint128 liquidityRewardsActivationThreshold
     )
   {
+    console.log("pool parameters");
     Types.PoolParameters storage poolParameters = pools[ownerAddress].parameters;
+    console.log(1);
     return (
       poolParameters.UNDERLYING_TOKEN,
       poolParameters.MIN_RATE,
@@ -84,6 +97,8 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       poolParameters.LATE_REPAY_FEE_PER_BOND_RATE,
       poolParameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD
     );
+
+    console.log(2);
   }
 
   /**
@@ -242,14 +257,18 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD: params.liquidityRewardsActivationThreshold,
       EARLY_REPAY: params.earlyRepay
     });
+
     pools[msg.sender].state.yieldProviderLiquidityRatio = uint128(params.yieldProvider.getReserveNormalizedIncome());
 
     borrowerAuthorizedPools[msg.sender] = msg.sender;
+    poolsAddresses.push(msg.sender);
+
     emit PoolCreated(params);
 
     if (pools[msg.sender].parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD == 0) {
       pools[msg.sender].state.active = true;
       emit PoolActivated(pools[msg.sender].parameters.OWNER);
+      console.log(3);
     }
   }
 

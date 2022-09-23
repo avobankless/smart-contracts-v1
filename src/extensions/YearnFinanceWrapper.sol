@@ -69,6 +69,7 @@ contract YearnFinanceWrapper is ERC20, BaseWrapper {
   }
 
   function pricePerShare() public view returns (uint256) {
+    console.log("price per share");
     uint256 pricePerShare;
     if (totalSupply() == 0) {
       return 1e18;
@@ -151,6 +152,7 @@ contract YearnFinanceWrapper is ERC20, BaseWrapper {
   }
 
   function getReserveNormalizedIncome() public view returns (uint256) {
+    console.log("getReserveNormalizedIncome");
     // TODO: Scale to ray accordingly to the decimals of the token
     return pricePerShare() * 1e9; // Scales result to RAY
   }

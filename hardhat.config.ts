@@ -1,7 +1,6 @@
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-vyper';
-import '@openzeppelin/hardhat-upgrades';
 import '@primitivefi/hardhat-dodoc';
 import '@typechain/hardhat';
 import 'dotenv/config';
@@ -12,7 +11,6 @@ import 'hardhat-gas-reporter';
 import 'hardhat-interface-generator';
 import 'hardhat-tracer';
 import 'solidity-coverage';
-require('hardhat-contract-sizer');
 
 import {HardhatUserConfig} from 'hardhat/types';
 
@@ -25,6 +23,9 @@ if (process.env.HARDHAT_FORK) {
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
+      {
+        version: '0.5.0',
+      },
       {
         version: '0.8.9',
         settings: {
@@ -229,6 +230,10 @@ const config: HardhatUserConfig = {
       url: node_url('localhost'),
       accounts: accounts(),
     },
+    ganache: {
+      url: node_url('ganache'),
+      accounts: accounts(),
+    },
     mainnet: {
       url: node_url('mainnet'),
       accounts: accounts('mainnet'),
@@ -256,6 +261,10 @@ const config: HardhatUserConfig = {
     mumbai: {
       url: node_url('mumbai'),
       accounts: accounts('mumbai'),
+    },
+    arbitrum: {
+      url: node_url('arbitrum'),
+      accounts: accounts('arbitrum'),
     },
   },
   paths: {

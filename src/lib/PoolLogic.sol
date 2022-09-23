@@ -637,7 +637,9 @@ library PoolLogic {
     }
   }
 
-  function getTickBondPrice(uint128 rate, uint128 loanDuration) internal pure returns (uint128 price) {
+  function getTickBondPrice(uint128 rate, uint128 loanDuration) public view returns (uint128 price) {
+    console.log("~ loanDuration", loanDuration);
+    console.log(" rate", rate);
     price = uint128(WAD).wadDiv(uint128(WAD + (uint256(rate) * uint256(loanDuration)) / uint256(SECONDS_PER_YEAR)));
   }
 

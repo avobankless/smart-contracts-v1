@@ -12,6 +12,10 @@ export function node_url(networkName: string): string {
     return 'http://localhost:8545';
   }
 
+  if (networkName === 'ganache') {
+    return 'http://localhost:8000';
+  }
+
   let uri = process.env.ETH_NODE_URI;
   if (uri) {
     uri = uri.replace('{{networkName}}', networkName);

@@ -21,11 +21,14 @@ import {
   PositionDescriptor__factory,
   PositionManager,
   PositionManager__factory,
+  Token1,
   Token1__factory,
   Vault__factory,
+  YearnFinanceWrapper,
   // VaultDai__factory,
   YearnFinanceWrapper__factory,
 } from '../../typechain';
+import {MockYearnRegistry} from '../../typechain/MockYearnRegistry';
 import {secondsPerYear, WAD} from './constants';
 import {User} from './types';
 
@@ -60,9 +63,10 @@ export async function setupFixture(fixtureName: string) {
   const Position = await artifacts.readArtifact('PositionManager');
   const BorrowerPools = await artifacts.readArtifact('BorrowerPools');
   const ILendingPool = await artifacts.readArtifact('ILendingPool');
-  // const YearnFinanceWrapper = await artifacts.readArtifact(
-  //   'YearnFinanceWrapper'
-  // );
+  const Token1 = await artifacts.readArtifact('Token1');
+  const YearnFinanceWrapper = await artifacts.readArtifact(
+    'YearnFinanceWrapper'
+  );
 
   const DepositToken2C = await deployMockContract(signerDeployer, ERC20.abi);
   const PositionC = await deployMockContract(signerDeployer, Position.abi);
@@ -89,14 +93,21 @@ export async function setupFixture(fixtureName: string) {
     VaultF: <Vault__factory>await ethers.getContractFactory('Vault'),
     // VaultDai: <VaultDai__factory>await ethers.getContractFactory('VaultDai'),
 
+    YearnRegistry: <MockYearnRegistry>(
+      (<unknown>await ethers.getContractFactory('MockYearnRegistry'))
+    ),
     YearnRegistryF: <MockYearnRegistry__factory>(
       await ethers.getContractFactory('MockYearnRegistry')
     ),
 
+    YearnFinanceWrapper: <YearnFinanceWrapper>(
+      await ethers.getContractFactory('YearnFinanceWrapper')
+    ),
     YearnFinanceWrapperF: <YearnFinanceWrapper__factory>(
       await ethers.getContractFactory('YearnFinanceWrapper')
     ),
 
+    Token1: <Token1>await ethers.getContract('Token1'),
     Token1F: <Token1__factory>await ethers.getContractFactory('Token1'),
 
     BorrowerPools: <BorrowerPools>await ethers.getContract('BorrowerPools'),
