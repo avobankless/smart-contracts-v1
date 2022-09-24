@@ -19,10 +19,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // deploy
   const Vault = await deploy('Vault', {
-    contract: 'Token1',
+    contract: 'Vault',
     from: deployer,
     log: true,
-    arguments: [
+    args: [
       Token1.address,
       deployer,
       deployer,
@@ -35,6 +35,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Print all contracts info pretty
   log('Vault: ' + Vault.address);
+  // await hre.tenderly.persistArtifacts({
+  //   name: 'Vault',
+  //   address: Vault.address,
+  // });
 };
 export default func;
 func.tags = ['All', 'Vault'];

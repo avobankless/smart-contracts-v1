@@ -69,7 +69,6 @@ contract YearnFinanceWrapper is ERC20, BaseWrapper {
   }
 
   function pricePerShare() public view returns (uint256) {
-    console.log("price per share");
     uint256 pricePerShare;
     if (totalSupply() == 0) {
       return 1e18;
@@ -92,20 +91,17 @@ contract YearnFinanceWrapper is ERC20, BaseWrapper {
   function deposit(uint256 amount) external returns (uint256 deposited) {
     deposited = _deposit(msg.sender, address(this), amount, true); // `true` = pull from `msg.sender`
     uint256 shares = _sharesForValue(deposited); // NOTE: Must be calculated after deposit is handled
-    _mint(msg.sender, shares);
+    _mint(address(this), shares);
   }
 
-  function withdraw(
-    address _address,
-    uint256 _amount,
-    address _to
-  ) external returns (uint256) {
-    return withdraw(balanceOf(msg.sender));
-  }
+  function withdraw(address token, uint256 amount, address to) public returns (uint256 withdrawn) {
+    // Todo addy onlyOwner or roles
+    uint256 pricePerShare = pricePerShare();
+    uint256 shares = (amount * (10**uint256(decimals()))) / (pricePerShare);
+    uint256 balanceOfContract = balanceOf(address(this));
 
-  function withdraw(uint256 shares) public returns (uint256 withdrawn) {
-    withdrawn = _withdraw(address(this), msg.sender, _shareValue(shares), true); // `true` = withdraw from `bestVault`
-    _burn(msg.sender, shares);
+    withdrawn = _withdraw(address(this), to, _shareValue(shares), true); // `true` = withdraw from `bestVault`
+    _burn(address(this), shares);
   }
 
   function migrate() external onlyAffiliate returns (uint256) {
@@ -152,7 +148,6 @@ contract YearnFinanceWrapper is ERC20, BaseWrapper {
   }
 
   function getReserveNormalizedIncome() public view returns (uint256) {
-    console.log("getReserveNormalizedIncome");
     // TODO: Scale to ray accordingly to the decimals of the token
     return pricePerShare() * 1e9; // Scales result to RAY
   }

@@ -1,4 +1,5 @@
 import '@nomiclabs/hardhat-ethers';
+
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-vyper';
 import '@primitivefi/hardhat-dodoc';
@@ -58,7 +59,7 @@ const config: HardhatUserConfig = {
     ],
   },
   vyper: {
-    version: '0.2.12',
+    version: '0.3.6',
   },
   namedAccounts: {
     deployer: {
@@ -291,6 +292,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       kovan: process.env.ETHERSCAN_KEY,
       polygonMumbai: process.env.ETHERSCAN_KEY,
+      goerli: process.env.ETHERSCAN_KEY,
     },
   },
   abiExporter: {

@@ -44,7 +44,7 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     * @return pools array with pools created
     **/
 
-  function getPools() external view returns (address[] memory) {
+  function getPoolsAddresses() external view returns (address[] memory) {
     return poolsAddresses;
   }
 
@@ -81,9 +81,7 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       uint128 liquidityRewardsActivationThreshold
     )
   {
-    console.log("pool parameters");
     Types.PoolParameters storage poolParameters = pools[ownerAddress].parameters;
-    console.log(1);
     return (
       poolParameters.UNDERLYING_TOKEN,
       poolParameters.MIN_RATE,
@@ -97,8 +95,6 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
       poolParameters.LATE_REPAY_FEE_PER_BOND_RATE,
       poolParameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD
     );
-
-    console.log(2);
   }
 
   /**
@@ -268,7 +264,6 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     if (pools[msg.sender].parameters.LIQUIDITY_REWARDS_ACTIVATION_THRESHOLD == 0) {
       pools[msg.sender].state.active = true;
       emit PoolActivated(pools[msg.sender].parameters.OWNER);
-      console.log(3);
     }
   }
 

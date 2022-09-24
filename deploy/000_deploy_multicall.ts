@@ -26,6 +26,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Print all contracts info pretty
   log('Multicall2library: ' + Multicall2.address);
+
+  // await hre.tenderly.persistArtifacts({
+  //   name: 'Multicall2',
+  //   address: Multicall2.address,
+  // });
 };
 export default func;
 func.tags = ['All', 'Multicall2'];

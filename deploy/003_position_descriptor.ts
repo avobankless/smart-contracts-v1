@@ -34,6 +34,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log(
     'PositionDescriptor proxy address: ' + PositionDescriptorDeployer.address
   );
+
+  // await hre.tenderly.persistArtifacts({
+  //   name: 'PositionDescriptorDeployer',
+  //   address: PositionDescriptorDeployer.address,
+  // });
 };
 export default func;
 func.tags = ['All', 'PositionDescriptor'];

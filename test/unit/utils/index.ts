@@ -73,7 +73,7 @@ export const setupTestContracts = async (
   await deployedToken1.mint(testPositionManager.address, parseEther('10000'));
   await deployedToken1
     .connect(await ethers.getSigner(testPositionManager.address))
-    .increaseAllowance(deployedBorrowerPools.address, parseEther('10000'));
+    .approve(deployedBorrowerPools.address, parseEther('10000'));
 
   await mocks.DepositToken2.mock.decimals.returns(18);
 
@@ -115,6 +115,7 @@ export const setupTestContracts = async (
       'TEST'
     );
 
+  console.log('testBorrower.address', testBorrower.address);
   await testBorrower.BorrowerPools.createNewPool({
     poolOwner: testBorrower.address,
     underlyingToken: deployedToken1.address,

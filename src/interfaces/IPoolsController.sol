@@ -82,6 +82,13 @@ interface IPoolsController {
   // VIEW METHODS
 
   /**
+    * @notice Returns all the pools created
+    * @return pools array with pools created
+   **/
+
+  function getPoolsAddresses() external view returns (address[] memory);
+
+  /**
    * @notice Returns the parameters of a pool
    * @param ownerAddress The identifier of the pool
    * @return underlyingToken Address of the underlying token of the pool

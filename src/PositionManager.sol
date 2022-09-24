@@ -195,7 +195,9 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
 
     uint8 decimals = ERC20Upgradeable(underlyingToken).decimals();
 
+
     uint128 normalizedAmount = amount.scaleToWad(decimals);
+
 
     (uint128 adjustedBalance, uint128 bondsIssuanceIndex) = pools.deposit(
       rate,
@@ -204,6 +206,7 @@ contract PositionManager is ERC721Upgradeable, IPositionManager {
       _msgSender(),
       normalizedAmount
     );
+    
 
     _positions[tokenId] = Types.PositionDetails({
       adjustedBalance: adjustedBalance,
