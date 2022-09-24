@@ -48,12 +48,20 @@ const config: HardhatUserConfig = {
         },
       },
       {
+<<<<<<< HEAD
         version: '0.6.13',
+=======
+        version: '0.8.13',
+>>>>>>> 42a640ab60b9ae18333018e086bdc098d7a9094d
         settings: {
           optimizer: {
             enabled: true,
             runs: 200,
           },
+<<<<<<< HEAD
+=======
+          evmVersion: 'istanbul',
+>>>>>>> 42a640ab60b9ae18333018e086bdc098d7a9094d
         },
       },
     ],

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 pragma experimental ABIEncoderV2;
 
 import {ISuperfluid, ISuperfluidToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -24,7 +24,7 @@ contract StreamMoney is Ownable {
     uint256 public _minStreamTime = 604800; // 7 DAYS in SECs
 
     struct Stream {
-        int96 flowRate;
+        int256 flowRate;
         uint256 start;
         uint256 end;
         uint256 bufferAmount;
@@ -47,7 +47,7 @@ contract StreamMoney is Ownable {
         address superToken,
         address sender,
         address receiver,
-        int96 flowRate
+        int256 flowRate
     );
     event StreamCanceled(address superToken, address sender, address receiver);
 
@@ -177,7 +177,7 @@ contract StreamMoney is Ownable {
     function startStream(
         address _receiver,
         address _superToken,
-        int96 _flowRate, // in wei/second
+        int256 _flowRate, // in wei/second
         uint256 _bufferTime, // in seconds
         uint256 _streamingPeriod // in seconds
     ) public {
@@ -226,7 +226,7 @@ contract StreamMoney is Ownable {
         );
 
         // start stream
-        cfaV1.createFlow(_receiver, superToken, _flowRate);
+        cfaV1.createFlow(_receiver, ISuperfluidToken(_superToken), int96(_flowRate));
         emit StreamInitiated(_superToken, msg.sender, _receiver, _flowRate);
     }
 
@@ -235,7 +235,7 @@ contract StreamMoney is Ownable {
         address _superToken,
         address _sender,
         address _receiver,
-        int96 _flowrate,
+        int256 _flowrate,
         uint256 _start,
         uint256 _end,
         uint256 _bufferAmount,
@@ -251,7 +251,7 @@ contract StreamMoney is Ownable {
         s.penaltyAmount = _penaltyAmount;
     }
 
-    function calculateStreamAmount(int96 _flowRate, uint256 _streamingPeriod)
+    function calculateStreamAmount(int256 _flowRate, uint256 _streamingPeriod)
         public
         view
         returns (uint256)
@@ -259,7 +259,7 @@ contract StreamMoney is Ownable {
         return (uint256(_flowRate) * _streamingPeriod);
     }
 
-    function calculateBuffer(int96 _flowrate, uint256 _bufferTime)
+    function calculateBuffer(int256 _flowrate, uint256 _bufferTime)
         public
         view
         returns (uint256)
@@ -269,7 +269,7 @@ contract StreamMoney is Ownable {
         return buffer;
     }
 
-    function calculatePenalty(int96 _flowrate) public view returns (uint256) {
+    function calculatePenalty(int256 _flowrate) public view returns (uint256) {
         uint256 calculatedPenalty = uint256(_flowrate) * _minStreamTime;
         return
             calculatedPenalty < _minPenalty ? _minPenalty : calculatedPenalty;
