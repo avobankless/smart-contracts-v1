@@ -14,6 +14,14 @@ import "./lib/Uint128WadRayMath.sol";
 
 import "./PoolsController.sol";
 
+import {ISuperfluid, ISuperToken, ISuperApp, ISuperAgreement, SuperAppDefinitions} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+
+import {CFAv1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
+
+import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+
+import {SuperAppBase} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
+
 contract BorrowerPools is PoolsController, IBorrowerPools {
   using PoolLogic for Types.Pool;
   using Scaling for uint128;
@@ -467,6 +475,9 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
    * @param to The address to which the borrowed funds should be sent.
    * @param loanAmount The total amount of the loan
    **/
+
+
+
   function borrow(address to, uint128 loanAmount) external override whenNotPaused {
     Types.Pool storage pool = pools[borrowerAuthorizedPools[msg.sender]];
     if (pool.state.defaulted) {

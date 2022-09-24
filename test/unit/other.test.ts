@@ -108,7 +108,7 @@ describe('Borrower Pools - Borrow', async function () {
       )
     ).to.emit(PositionManager, 'Deposit');
   });
-  it.only('borrowing should increase balance of the account', async function () {
+  it('borrowing should increase balance of the account', async function () {
     await positionManager.PositionManager.deposit(
       positionManager.address,
       parseEther('100'),
@@ -119,5 +119,24 @@ describe('Borrower Pools - Borrow', async function () {
     await borrower.BorrowerPools.borrow(borrower.address, parseEther('10'));
     const balance = await poolTokenContract.balanceOf(borrower.address);
     expect(balance).to.equal(parseEther('10'));
+  });
+
+  it.only('Withdrawing should burn position NFT', async function () {
+    await positionManager.PositionManager.deposit(
+      positionManager.address,
+      parseEther('100'),
+      parseEther('0.06'),
+      borrower.address,
+      poolToken
+    );
+    await borrower.BorrowerPools.borrow(borrower.address, parseEther('30'));
+    const balanceBefore = await PositionManager.balanceOf(
+      positionManager.address
+    );
+    console.log('🚀 ~ balanceBefore', balanceBefore);
+    await positionManager.PositionManager.withdraw(1);
+    const balance = await PositionManager.balanceOf(positionManager.address);
+    console.log('🚀 ~ balance', balance);
+    expect(balance).to.equal(0);
   });
 });
