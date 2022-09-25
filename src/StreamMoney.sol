@@ -147,7 +147,7 @@ contract StreamMoney is Ownable {
         availableSFTokenBalances[_superToken][
             msg.sender
         ] = availableSFTokenBalances[_superToken][msg.sender].add(_amount);
-        // alow to upgrade erc20 tokens
+        // allow to upgrade erc20 tokens
         IERC20(_token).approve(_superToken, _amount);
         // upgrade erc20 token to Superfluid token
         ISuperToken(_superToken).upgrade(_amount);
@@ -188,6 +188,7 @@ contract StreamMoney is Ownable {
                 calculatePenalty(_flowRate)) > 0,
             "Not enough Supertokens to stream"
         );
+
         require(
             streams[_superToken][msg.sender][_receiver].flowRate == 0,
             "You have been already streaming to this account, you need to cancel stream first."

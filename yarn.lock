@@ -1042,10 +1042,10 @@
   dependencies:
     "antlr4ts" "^0.5.0-alpha.4"
 
-"@superfluid-finance/ethereum-contracts@^1.4.0":
-  "integrity" "sha512-j552IAThuzdgnxsyQ9ujqsOUZl48PIv51wLARhiSv6l78RwdEnZd7U1/3UXyZuN8i0JARKExOetd9+SDaSRW8Q=="
-  "resolved" "https://registry.npmjs.org/@superfluid-finance/ethereum-contracts/-/ethereum-contracts-1.4.0.tgz"
-  "version" "1.4.0"
+"@superfluid-finance/ethereum-contracts@^1.4.1":
+  "integrity" "sha512-44wMl6v3pt+4+Q2zITUIeHFylS6iayM0ibjmtzhqJWrnC7BOuA39hoJWswZBrl0Tq+aESoOOXKR4v9jt5kYEbw=="
+  "resolved" "https://registry.npmjs.org/@superfluid-finance/ethereum-contracts/-/ethereum-contracts-1.4.1.tgz"
+  "version" "1.4.1"
   dependencies:
     "@decentral.ee/web3-helpers" "0.5.3"
     "@openzeppelin/contracts" "4.7.3"
