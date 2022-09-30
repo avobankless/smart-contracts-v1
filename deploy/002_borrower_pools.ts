@@ -1,6 +1,7 @@
 import debugModule from 'debug';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
+import {networkConfig} from '../helper-hardhat-config';
 
 import {BorrowerPools, PoolLogic} from '../typechain';
 
@@ -9,7 +10,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log.enabled = true;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {deployments} = hre as any;
-  const {ethers, getNamedAccounts} = hre;
+  const {ethers, getNamedAccounts, network} = hre;
 
   // keep ts support on hre members
   const {deployer, governance} = await getNamedAccounts();
@@ -33,7 +34,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         execute: {
           init: {
             methodName: 'initialize',
-            args: [governance],
+            args: [
+              governance,
+              networkConfig[network.name].superFluidHost!,
+              networkConfig[network.name].registrationKey ?? '',
+            ],
           },
         },
       },
@@ -50,3 +55,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 export default func;
 func.tags = ['All', 'BorrowerPools'];
+func.dependencies = ['PoolLogic'];

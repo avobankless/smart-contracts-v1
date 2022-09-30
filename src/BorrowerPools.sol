@@ -13,22 +13,66 @@ import "./lib/Types.sol";
 import "./lib/Uint128WadRayMath.sol";
 
 import "./PoolsController.sol";
+import {ISuperfluid, ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+import {SuperAppDefinitions} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
+import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+import {CFAv1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
+
+
+
+/// @dev Thrown when the receiver is the zero adress.
+error InvalidReceiver();
+
+/// @dev Thrown when receiver is also a super app.
+error ReceiverIsSuperApp();
+
+/// @dev Thrown when the callback caller is not the host.
+error Unauthorized();
+
+/// @dev Thrown when the token being streamed to this contract is invalid
+error InvalidToken();
+
+/// @dev Thrown when the agreement is other than the Constant Flow Agreement V1
+error InvalidAgreement();
 
 contract BorrowerPools is PoolsController, IBorrowerPools {
   using PoolLogic for Types.Pool;
   using Scaling for uint128;
   using Uint128WadRayMath for uint128;
+  ISuperfluid public _host;
+  using CFAv1Library for CFAv1Library.InitData;
+  CFAv1Library.InitData public cfaV1Lib;
 
-  function initialize(address governance) public initializer {
+     modifier onlyHost() {
+        if (msg.sender != address(cfaV1Lib.host)) revert Unauthorized();
+        _;
+    }
+
+    modifier onlyExpected(ISuperToken superToken, address agreementClass) {
+        if (address(superToken) != pools[msg.sender].parameters.UNDERLYING_TOKEN) revert InvalidToken();
+        if (agreementClass != address(cfaV1Lib.cfa)) revert InvalidAgreement();
+        _;
+    }
+
+  function initialize(address governance, ISuperfluid host, string calldata registrationKey ) public initializer {
     _initialize();
     if (governance == address(0)) {
       // Prevent setting governance to null account
       governance = _msgSender();
     }
+    _host = host;
     _grantRole(DEFAULT_ADMIN_ROLE, governance);
     _grantRole(Roles.GOVERNANCE_ROLE, governance);
     _setRoleAdmin(Roles.BORROWER_ROLE, Roles.GOVERNANCE_ROLE);
     _setRoleAdmin(Roles.POSITION_ROLE, Roles.GOVERNANCE_ROLE);
+
+    uint256 configWord =
+            SuperAppDefinitions.APP_LEVEL_FINAL
+            | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
+            | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+            | SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
+
+    host.registerAppWithKey(configWord, registrationKey);
   }
 
   // VIEW METHODS
@@ -461,16 +505,61 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
 
   // BORROWER METHODS
 
-  /**
-   * @notice Called by the borrower to sell bonds to the order book.
+  struct AfterAgreementCallback {
+    address sender;
+    int96 flowRate;
+  }
+
+     function afterAgreementCreated(
+        ISuperToken _superToken/*superToken*/,
+        address _agreementClass/*agreementClass*/,
+        bytes32 /*agreementId*/,
+        bytes calldata _agreementData/*agreementData*/,
+        bytes calldata /*cbdata*/,
+        bytes calldata _ctx/*ctx*/
+    )
+        external
+        virtual
+        onlyExpected(_superToken, _agreementClass)
+        onlyHost
+        returns (bytes memory /*newCtx*/)
+    {
+      console.log("afterAgreement fired");
+
+      AfterAgreementCallback memory afterAgreementCreated;
+
+        (afterAgreementCreated.sender,) = abi.decode(_agreementData, (address, address));
+        if(pools[afterAgreementCreated.sender].state.superfluidStream == true){
+         revert Errors.BP_STREAM_ALREADY_EXISTS(); 
+        }
+
+
+        {
+          IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(_agreementClass);
+          (,afterAgreementCreated.flowRate,,) = cfa.getFlow(_superToken, afterAgreementCreated.sender, address(this));
+        }
+
+        ISuperfluid.Context memory decompiledContext = _host.decodeCtx(_ctx);
+
+        uint128 amountToBorrow;
+        uint128 loanDuration;
+        (amountToBorrow, loanDuration) = abi.decode(decompiledContext.userData, (uint128, uint128));
+
+        if(amountToBorrow > uint128(uint96(afterAgreementCreated.flowRate)) * loanDuration){
+            revert Errors.BP_BORROW_AMOUNT_TOO_HIGH();
+        }
+
+        borrow(afterAgreementCreated.sender, amountToBorrow);
+    }
+
+
+/**
+   * @notice Called after a superfluid stream of money is created to sell bonds to the order book.
    * The affected ticks get updated according the amount of bonds sold.
    * @param to The address to which the borrowed funds should be sent.
    * @param loanAmount The total amount of the loan
    **/
-
-
-
-  function borrow(address to, uint128 loanAmount) external override whenNotPaused {
+  function borrow(address to, uint128 loanAmount) private whenNotPaused {
     Types.Pool storage pool = pools[borrowerAuthorizedPools[msg.sender]];
     if (pool.state.defaulted) {
       revert Errors.BP_POOL_DEFAULTED();
@@ -526,7 +615,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       normalizedBorrowedAmount.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
       to
     );
-  }
+  } 
 
   /**
    * @notice Repays a currently outstanding bonds of the given pool.

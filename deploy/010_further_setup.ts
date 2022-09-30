@@ -30,18 +30,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   );
 
   await YearnRegistry.newVault(Token1.address, Vault.address);
-  // await catchUnknownSigner(
-  //   execute(
-  //     'MockYearnRegistry',
-  //     {from: governance},
-  //     'newVault',
-  //     Token1.address,
-  //     YearnRegistry.address
-  //   )
-  // );
-
-  // Prevent re-execution by returning true
 };
 func.id = 'setup';
 export default func;
-func.tags = ['All', 'furtherSetup'];
+func.tags = ['All', 'furtherSetup', 'local', 'test'];

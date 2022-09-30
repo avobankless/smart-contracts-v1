@@ -55,6 +55,7 @@ library Types {
     bool active;
     bool defaulted;
     bool closed;
+    bool superfluidStream;
     uint128 currentMaturity;
     uint128 bondsIssuedQuantity;
     uint128 normalizedBorrowedAmount;

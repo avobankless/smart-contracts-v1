@@ -2,7 +2,7 @@ import debugModule from 'debug';
 import {ethers} from 'hardhat';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
-import {Token1} from '../typechain';
+import {MockYearnRegistry} from '../typechain/MockYearnRegistry';
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const log = debugModule('deploy-setup');
@@ -15,30 +15,23 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const {deployer} = await getNamedAccounts();
   const {deploy} = deployments;
 
-  const Token1 = <Token1>await ethers.getContract('Token1');
-
   // deploy
-  const Vault = await deploy('Vault', {
-    contract: 'Vault',
+  await deploy('MockYearnRegistry', {
+    contract: 'MockYearnRegistry',
     from: deployer,
     log: true,
-    args: [
-      Token1.address,
-      deployer,
-      deployer,
-      'Test Vault',
-      'TV',
-      deployer,
-      deployer,
-    ],
   });
 
+  const YearnRegistry = <MockYearnRegistry>(
+    await ethers.getContract('MockYearnRegistry', deployer)
+  );
   // Print all contracts info pretty
-  log('Vault: ' + Vault.address);
+  log('YearnRegistry: ' + YearnRegistry.address);
+
   // await hre.tenderly.persistArtifacts({
-  //   name: 'Vault',
-  //   address: Vault.address,
+  //   name: 'YearnRegistry',
+  //   address: YearnRegistry.address,
   // });
 };
 export default func;
-func.tags = ['All', 'Vault'];
+func.tags = ['All', 'yearnRegistry', 'local', 'test'];

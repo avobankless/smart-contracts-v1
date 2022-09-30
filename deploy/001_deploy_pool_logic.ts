@@ -22,11 +22,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Print all contracts info pretty
   log('PoolLogic library: ' + PoolLogic.address);
-
-  // await hre.tenderly.persistArtifacts({
-  //   name: 'PoolLogic',
-  //   address: PoolLogic.address,
-  // });
 };
 export default func;
 func.tags = ['All', 'PoolLogic'];

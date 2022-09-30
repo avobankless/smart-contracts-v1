@@ -22,6 +22,8 @@ library Errors {
   error BP_NO_DEPOSIT_TO_WITHDRAW(); // "Deposited amount non-borrowed equals to zero";
   error BP_TARGET_BOND_ISSUANCE_INDEX_EMPTY(); // "Target bond issuance index has no amount to withdraw";
   error BP_EARLY_REPAY_NOT_ACTIVATED(); // "The early repay feature is not activated for this pool";
+  error BP_STREAM_ALREADY_EXISTS(); // "The superfluid stream already exists";
+  error BP_BORROW_AMOUNT_TOO_HIGH(); // "The borrow amount is too high compared to the superfluid stream";
 
   // PoolController
   error PC_BORROWER_NOT_OWNER(); // "Borrower is not the owner of the pool";

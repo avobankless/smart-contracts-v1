@@ -48,11 +48,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await ethers.getContract('PositionManager', deployer)
   );
   log('PositionManager proxy address: ' + PositionManagerDeployer.address);
-
-  // await hre.tenderly.persistArtifacts({
-  //   name: 'PositionManager proxy',
-  //   address: PositionManagerDeployer.address,
-  // });
 };
 export default func;
 func.tags = ['All', 'PositionManager'];

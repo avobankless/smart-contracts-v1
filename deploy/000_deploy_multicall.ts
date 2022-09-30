@@ -3,10 +3,6 @@ import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  // if (hre.network.config.chainId !== 31337) {
-  //   return;
-  // }
-
   const log = debugModule('deploy-setup');
   log.enabled = true;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,11 +22,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Print all contracts info pretty
   log('Multicall2library: ' + Multicall2.address);
-
-  // await hre.tenderly.persistArtifacts({
-  //   name: 'Multicall2',
-  //   address: Multicall2.address,
-  // });
 };
 export default func;
-func.tags = ['All', 'Multicall2'];
+func.tags = ['All', 'multicall2', 'test', 'local'];

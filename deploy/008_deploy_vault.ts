@@ -3,7 +3,6 @@ import {ethers} from 'hardhat';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
 import {Token1} from '../typechain';
-import {MockYearnRegistry} from '../typechain/MockYearnRegistry';
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const log = debugModule('deploy-setup');
@@ -16,26 +15,26 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const {deployer} = await getNamedAccounts();
   const {deploy} = deployments;
 
-  const Token1: Token1 = await ethers.getContract('Token1');
-  const MockYearnRegistry: MockYearnRegistry = await ethers.getContract(
-    'MockYearnRegistry'
-  );
+  const Token1 = <Token1>await ethers.getContract('Token1');
 
   // deploy
-  const YearnFinanceWrapper = await deploy('YearnFinanceWrapper', {
-    contract: 'YearnFinanceWrapper',
+  const Vault = await deploy('Vault', {
+    contract: 'Vault',
     from: deployer,
     log: true,
-    args: [Token1.address, MockYearnRegistry.address, 'Test Wrapper', 'TW'],
+    args: [
+      Token1.address,
+      deployer,
+      deployer,
+      'Test Vault',
+      'TV',
+      deployer,
+      deployer,
+    ],
   });
 
   // Print all contracts info pretty
-  log('YearnFinanceWrapper: ' + YearnFinanceWrapper.address);
-
-  // await hre.tenderly.persistArtifacts({
-  //   name: 'YearnFinanceWrapper',
-  //   address: YearnFinanceWrapper.address,
-  // });
+  log('Vault: ' + Vault.address);
 };
 export default func;
-func.tags = ['All', 'YearnFinanceWrapper'];
+func.tags = ['All', 'vault', 'local', 'test'];

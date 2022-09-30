@@ -2,6 +2,7 @@ import '@nomiclabs/hardhat-ethers';
 
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-vyper';
+import '@openzeppelin/hardhat-upgrades';
 import '@primitivefi/hardhat-dodoc';
 import '@typechain/hardhat';
 import 'dotenv/config';
@@ -35,6 +36,7 @@ const config: HardhatUserConfig = {
             runs: 1,
           },
           evmVersion: 'istanbul',
+          viaIR: true,
         },
       },
       {
@@ -48,20 +50,14 @@ const config: HardhatUserConfig = {
         },
       },
       {
-<<<<<<< HEAD
-        version: '0.6.13',
-=======
         version: '0.8.13',
->>>>>>> 42a640ab60b9ae18333018e086bdc098d7a9094d
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 100,
           },
-<<<<<<< HEAD
-=======
           evmVersion: 'istanbul',
->>>>>>> 42a640ab60b9ae18333018e086bdc098d7a9094d
+          // viaIR: true,
         },
       },
     ],
@@ -234,46 +230,52 @@ const config: HardhatUserConfig = {
           }
         : undefined,
       saveDeployments: true,
+      tags: ['test', 'local'],
     },
     localhost: {
       url: node_url('localhost'),
       accounts: accounts(),
+      tags: ['local', 'test'],
     },
     ganache: {
       url: node_url('ganache'),
       accounts: accounts(),
+      tags: ['local', 'test'],
     },
     mainnet: {
       url: node_url('mainnet'),
       accounts: accounts('mainnet'),
+      tags: ['production'],
     },
     polygon: {
       url: node_url('polygon'),
       accounts: accounts('polygon'),
+      tags: ['production'],
     },
     rinkeby: {
       url: node_url('rinkeby'),
       accounts: accounts('rinkeby'),
+      tags: ['test', 'staging'],
     },
-    beta: {
+    kovan: {
       url: node_url('kovan'),
       accounts: accounts('kovan'),
-    },
-    staging: {
-      url: node_url('kovan'),
-      accounts: accounts('kovan'),
+      tags: ['test', 'staging'],
     },
     goerli: {
       url: node_url('goerli'),
       accounts: accounts('goerli'),
+      tags: ['test', 'staging'],
     },
     mumbai: {
       url: node_url('mumbai'),
       accounts: accounts('mumbai'),
+      tags: ['test', 'staging'],
     },
     arbitrum: {
       url: node_url('arbitrum'),
       accounts: accounts('arbitrum'),
+      tags: ['production'],
     },
   },
   paths: {

@@ -12,16 +12,23 @@ import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/c
 import {CFAv1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract StreamMoney is Ownable {
+import "hardhat/console.sol";
+
+contract StreamMoney is Initializable, OwnableUpgradeable {
     using CFAv1Library for CFAv1Library.InitData;
     using SafeMath for uint256;
 
-    uint256 public _minPenalty = 1000 * (10**18); // for STABLES 1000 USD
-    uint256 public _minStreamTime = 604800; // 7 DAYS in SECs
+    bool private initialized;
+    uint256 public _minPenalty;
+    uint256 public _minStreamTime;
+
+    //initialize cfaV1 variable
+    CFAv1Library.InitData public cfaV1;
 
     struct Stream {
         int256 flowRate;
@@ -51,10 +58,24 @@ contract StreamMoney is Ownable {
     );
     event StreamCanceled(address superToken, address sender, address receiver);
 
-    //initialize cfaV1 variable
-    CFAv1Library.InitData public cfaV1;
 
-    constructor(ISuperfluid host) {
+    // /// @custom:oz-upgrades-unsafe-allow constructor
+    // constructor() {
+    //  _disableInitializers();
+    // }
+
+    /**
+    * @param host Superfluid host address
+    * @param minPenalty The minimum penalty amount. 18 decimals
+    * @param minStreamTime The minimum stream time. 18 decimals
+    */
+    function initialize(ISuperfluid host, uint256 minPenalty, uint256 minStreamTime) public initializer {
+        require(!initialized, "Contract instance has already been initialized");
+        initialized = true;
+
+        _minPenalty = minPenalty; 
+        _minStreamTime = minStreamTime; 
+
         //initialize InitData struct, and set equal to cfaV1
         cfaV1 = CFAv1Library.InitData(
             host,
@@ -150,6 +171,7 @@ contract StreamMoney is Ownable {
         // alow to upgrade erc20 tokens
         IERC20(_token).approve(_superToken, _amount);
         // upgrade erc20 token to Superfluid token
+
         ISuperToken(_superToken).upgrade(_amount);
     }
 
@@ -188,12 +210,12 @@ contract StreamMoney is Ownable {
                 calculatePenalty(_flowRate)) > 0,
             "Not enough Supertokens to stream"
         );
+
         require(
             streams[_superToken][msg.sender][_receiver].flowRate == 0,
-            "You have been already streaming to this account, you need to cancel stream first."
+            "Cancel ongoing stream first."
         );
 
-        ISuperfluidToken superToken = ISuperfluidToken(_superToken);
         // update superfluid token balance of the sender
         uint256 _streamAmount = calculateStreamAmount(
             _flowRate,

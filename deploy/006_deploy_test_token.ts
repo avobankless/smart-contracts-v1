@@ -22,11 +22,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Print all contracts info pretty
   log('Token1: ' + Token1.address);
-
-  // await hre.tenderly.persistArtifacts({
-  //   name: 'Token1',
-  //   address: Token1.address,
-  // });
 };
 export default func;
-func.tags = ['All', 'Token1'];
+func.tags = ['All', 'token1', 'local', 'test'];

@@ -416,7 +416,7 @@ interface IBorrowerPools {
    * @param to The address to which the borrowed funds should be sent.
    * @param loanAmount The total amount of the loan
    **/
-  function borrow(address to, uint128 loanAmount) external;
+  // function borrow(address to, uint128 loanAmount) private;
 
   /**
    * @notice Repays a currently outstanding bonds of the given borrower.
