@@ -1,7 +1,9 @@
 import debugModule from 'debug';
 import {parseEther} from 'ethers/lib/utils';
+import {network} from 'hardhat';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
+import {networkConfig} from '../helper-hardhat-config';
 import {Token1} from '../typechain';
 
 import {MockYearnRegistry} from '../typechain/MockYearnRegistry';
@@ -24,12 +26,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   );
 
   const Token1 = <Token1>await ethers.getContract('Token1');
+  let networkName = network.name;
+  if (['localhost', 'hardhat'].includes(network.name)) {
+    networkName = process.env.HARDHAT_FORK!;
+  }
+  const tokenAddress = networkConfig[networkName].fDAI ?? Token1.address;
 
   const YearnRegistry = <MockYearnRegistry>(
     await ethers.getContract('MockYearnRegistry', governance)
   );
 
-  await YearnRegistry.newVault(Token1.address, Vault.address);
+  await YearnRegistry.newVault(tokenAddress, Vault.address);
 };
 func.id = 'setup';
 export default func;

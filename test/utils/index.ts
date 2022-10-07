@@ -28,6 +28,7 @@ import {
   // VaultDai__factory,
   YearnFinanceWrapper__factory,
 } from '../../typechain';
+import {SuperfluidCallbacks__factory} from '../../typechain/factories/SuperfluidCallbacks__factory';
 import {MockYearnRegistry} from '../../typechain/MockYearnRegistry';
 import {secondsPerYear, WAD} from './constants';
 import {User} from './types';
@@ -63,10 +64,6 @@ export async function setupFixture(fixtureName: string) {
   const Position = await artifacts.readArtifact('PositionManager');
   const BorrowerPools = await artifacts.readArtifact('BorrowerPools');
   const ILendingPool = await artifacts.readArtifact('ILendingPool');
-  const Token1 = await artifacts.readArtifact('Token1');
-  const YearnFinanceWrapper = await artifacts.readArtifact(
-    'YearnFinanceWrapper'
-  );
 
   const DepositToken2C = await deployMockContract(signerDeployer, ERC20.abi);
   const PositionC = await deployMockContract(signerDeployer, Position.abi);
@@ -110,6 +107,10 @@ export async function setupFixture(fixtureName: string) {
     Token1: <Token1>await ethers.getContract('Token1'),
     Token1F: <Token1__factory>await ethers.getContractFactory('Token1'),
 
+    SuperfluidCallbacksF: <SuperfluidCallbacks__factory>(
+      await ethers.getContractFactory('SuperfluidCallbacks')
+    ),
+
     BorrowerPools: <BorrowerPools>await ethers.getContract('BorrowerPools'),
     BorrowerPoolsF: <BorrowerPools__factory>await ethers.getContractFactory(
       'BorrowerPools',
@@ -117,6 +118,7 @@ export async function setupFixture(fixtureName: string) {
         libraries: {PoolLogic: poolLogic.address},
       }
     ),
+
     PositionManager: <PositionManager>(
       await ethers.getContract('PositionManager')
     ),

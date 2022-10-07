@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Source: https://raw.githubusercontent.com/wighawag/hardhat-deploy/master/solc_0.8/proxy/Proxy.sol
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 // EIP-1967
 abstract contract Proxy {

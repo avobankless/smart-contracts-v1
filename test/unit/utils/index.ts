@@ -1,10 +1,12 @@
 import {BigNumber} from 'ethers';
 import {parseEther} from 'ethers/lib/utils';
-import {ethers} from 'hardhat';
+import {ethers, getNamedAccounts, network} from 'hardhat';
+import {networkConfig} from '../../../helper-hardhat-config';
 
 import {
   BorrowerPools,
   PositionManager,
+  SuperfluidCallbacks,
   Token1,
   YearnFinanceWrapper,
 } from '../../../typechain';
@@ -40,6 +42,7 @@ export const setupTestContracts = async (
   deployedBorrowerPools: BorrowerPools;
   deployedToken1: Token1;
   deployedPositionManager: PositionManager;
+  deployedSuperfluidCallbacks: SuperfluidCallbacks;
   governance: User;
   testUser1: User;
   testUser2: User;
@@ -49,20 +52,32 @@ export const setupTestContracts = async (
   poolTokenAddress: string;
   otherTokenAddress: string;
 }> => {
+  const {governance: governanceAddress} = await getNamedAccounts();
   const deployedPositionManagerDescriptor =
     await deployer.PositionDescriptorF.deploy();
-  const deployedBorrowerPools = await deployer.BorrowerPoolsF.deploy();
-  const deployedPositionManager = await deployer.PositionManagerF.deploy();
+  const deployedBorrowerPools = <BorrowerPools>(
+    await ethers.getContract('BorrowerPools', governanceAddress)
+  );
+  const deployedSuperfluidCallbacks = <SuperfluidCallbacks>(
+    await ethers.getContract('SuperfluidCallbacks')
+  );
+  const deployedPositionManager = <PositionManager>(
+    await deployer.PositionManagerF.deploy()
+  );
 
   const deployerAddress =
     await deployedPositionManagerDescriptor.signer.getAddress();
-  await deployedBorrowerPools.initialize(deployerAddress);
   await deployedPositionManager.initialize(
     'My New Position',
     '📍',
     deployedBorrowerPools.address,
     deployedPositionManagerDescriptor.address
   );
+
+  let networkName = network.name;
+  if (['localhost', 'hardhat'].includes(network.name)) {
+    networkName = process.env.HARDHAT_FORK!;
+  }
 
   const deployedToken1 = await deployer.Token1F.deploy();
   const testPositionManager = await setupUser(users[4].address, {
@@ -107,18 +122,13 @@ export const setupTestContracts = async (
   const yearnRegistry = await deployer.YearnRegistryF.deploy();
   await yearnRegistry.newVault(deployedToken1.address, vault.address);
 
-  const deployedYearnFinanceWrapper =
-    await deployer.YearnFinanceWrapperF.deploy(
-      deployedToken1.address,
-      yearnRegistry.address,
-      'Test',
-      'TEST'
-    );
+  const deployedYearnFinanceWrapper = <YearnFinanceWrapper>(
+    await ethers.getContract('YearnFinanceWrapper')
+  );
 
-  console.log('testBorrower.address', testBorrower.address);
   await testBorrower.BorrowerPools.createNewPool({
     poolOwner: testBorrower.address,
-    underlyingToken: deployedToken1.address,
+    underlyingToken: networkConfig[networkName].fDAI!,
     yieldProvider: deployedYearnFinanceWrapper.address,
     minRate: minRateInput,
     maxRate: maxRateInput,
@@ -161,6 +171,7 @@ export const setupTestContracts = async (
     deployedToken1,
     deployedBorrowerPools,
     deployedPositionManager,
+    deployedSuperfluidCallbacks,
     governance,
     testUser1,
     testUser2,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 library SafeMath {
   function add(uint256 a, uint256 b) internal pure returns (uint256 c) {

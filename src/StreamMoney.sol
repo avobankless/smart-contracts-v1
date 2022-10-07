@@ -201,7 +201,8 @@ contract StreamMoney is Initializable, OwnableUpgradeable {
         address _superToken,
         int256 _flowRate, // in wei/second
         uint256 _bufferTime, // in seconds
-        uint256 _streamingPeriod // in seconds
+        uint256 _streamingPeriod, // in seconds
+        uint128 _amountToBorrow // in ether
     ) public {
         require(
             (availableSFTokenBalances[_superToken][msg.sender] -
@@ -247,8 +248,10 @@ contract StreamMoney is Initializable, OwnableUpgradeable {
             _penaltyAmount
         );
 
+        // user data
+        bytes memory userData = abi.encode(msg.sender, _amountToBorrow);
         // start stream
-        cfaV1.createFlow(_receiver, ISuperfluidToken(_superToken), int96(_flowRate));
+        cfaV1.createFlow(_receiver, ISuperfluidToken(_superToken), int96(_flowRate), userData);
         emit StreamInitiated(_superToken, msg.sender, _receiver, _flowRate);
     }
 

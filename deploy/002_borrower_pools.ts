@@ -1,7 +1,6 @@
 import debugModule from 'debug';
 import {DeployFunction} from 'hardhat-deploy/types';
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
-import {networkConfig} from '../helper-hardhat-config';
 
 import {BorrowerPools, PoolLogic} from '../typechain';
 
@@ -34,11 +33,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         execute: {
           init: {
             methodName: 'initialize',
-            args: [
-              governance,
-              networkConfig[network.name].superFluidHost!,
-              networkConfig[network.name].registrationKey ?? '',
-            ],
+            args: [governance],
           },
         },
       },
@@ -54,5 +49,5 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log('BorrowerPools proxy address: ' + BorrowerPoolsDeployer.address);
 };
 export default func;
-func.tags = ['All', 'BorrowerPools'];
+func.tags = ['All', 'BorrowerPools', 'test', 'local', 'production'];
 func.dependencies = ['PoolLogic'];

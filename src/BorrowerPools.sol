@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
 import "./interfaces/IBorrowerPools.sol";
 
@@ -13,12 +14,6 @@ import "./lib/Types.sol";
 import "./lib/Uint128WadRayMath.sol";
 
 import "./PoolsController.sol";
-import {ISuperfluid, ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
-import {SuperAppDefinitions} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
-import {CFAv1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
-
-
 
 /// @dev Thrown when the receiver is the zero adress.
 error InvalidReceiver();
@@ -39,43 +34,25 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
   using PoolLogic for Types.Pool;
   using Scaling for uint128;
   using Uint128WadRayMath for uint128;
-  ISuperfluid public _host;
-  using CFAv1Library for CFAv1Library.InitData;
-  CFAv1Library.InitData public cfaV1Lib;
 
-     modifier onlyHost() {
-        if (msg.sender != address(cfaV1Lib.host)) revert Unauthorized();
-        _;
-    }
-
-    modifier onlyExpected(ISuperToken superToken, address agreementClass) {
-        if (address(superToken) != pools[msg.sender].parameters.UNDERLYING_TOKEN) revert InvalidToken();
-        if (agreementClass != address(cfaV1Lib.cfa)) revert InvalidAgreement();
-        _;
-    }
-
-  function initialize(address governance, ISuperfluid host, string calldata registrationKey ) public initializer {
+  function initialize(address governance) public initializer {
     _initialize();
     if (governance == address(0)) {
       // Prevent setting governance to null account
       governance = _msgSender();
     }
-    _host = host;
     _grantRole(DEFAULT_ADMIN_ROLE, governance);
     _grantRole(Roles.GOVERNANCE_ROLE, governance);
     _setRoleAdmin(Roles.BORROWER_ROLE, Roles.GOVERNANCE_ROLE);
     _setRoleAdmin(Roles.POSITION_ROLE, Roles.GOVERNANCE_ROLE);
-
-    uint256 configWord =
-            SuperAppDefinitions.APP_LEVEL_FINAL
-            | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
-            | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
-            | SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-
-    host.registerAppWithKey(configWord, registrationKey);
   }
 
   // VIEW METHODS
+
+  function getRepaymentAmount(address ownerAddress, uint128 loanAmount) external view returns (uint128) {
+    Types.Pool storage pool = pools[ownerAddress];
+    return pool._getRepaymentAmount(loanAmount);
+  }
 
   /**
    * @notice Returns the liquidity ratio of a given tick in a pool's order book.
@@ -503,64 +480,22 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     (newAdjustedAmount, newBondsIssuanceIndex) = pool.depositToTick(newRate, normalizedAmount);
   }
 
-  // BORROWER METHODS
-
-  struct AfterAgreementCallback {
-    address sender;
-    int96 flowRate;
-  }
-
-     function afterAgreementCreated(
-        ISuperToken _superToken/*superToken*/,
-        address _agreementClass/*agreementClass*/,
-        bytes32 /*agreementId*/,
-        bytes calldata _agreementData/*agreementData*/,
-        bytes calldata /*cbdata*/,
-        bytes calldata _ctx/*ctx*/
-    )
-        external
-        virtual
-        onlyExpected(_superToken, _agreementClass)
-        onlyHost
-        returns (bytes memory /*newCtx*/)
-    {
-      console.log("afterAgreement fired");
-
-      AfterAgreementCallback memory afterAgreementCreated;
-
-        (afterAgreementCreated.sender,) = abi.decode(_agreementData, (address, address));
-        if(pools[afterAgreementCreated.sender].state.superfluidStream == true){
-         revert Errors.BP_STREAM_ALREADY_EXISTS(); 
-        }
-
-
-        {
-          IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(_agreementClass);
-          (,afterAgreementCreated.flowRate,,) = cfa.getFlow(_superToken, afterAgreementCreated.sender, address(this));
-        }
-
-        ISuperfluid.Context memory decompiledContext = _host.decodeCtx(_ctx);
-
-        uint128 amountToBorrow;
-        uint128 loanDuration;
-        (amountToBorrow, loanDuration) = abi.decode(decompiledContext.userData, (uint128, uint128));
-
-        if(amountToBorrow > uint128(uint96(afterAgreementCreated.flowRate)) * loanDuration){
-            revert Errors.BP_BORROW_AMOUNT_TOO_HIGH();
-        }
-
-        borrow(afterAgreementCreated.sender, amountToBorrow);
-    }
-
-
-/**
+  /**
    * @notice Called after a superfluid stream of money is created to sell bonds to the order book.
    * The affected ticks get updated according the amount of bonds sold.
    * @param to The address to which the borrowed funds should be sent.
    * @param loanAmount The total amount of the loan
    **/
-  function borrow(address to, uint128 loanAmount) private whenNotPaused {
-    Types.Pool storage pool = pools[borrowerAuthorizedPools[msg.sender]];
+  function borrow(
+    address to,
+    uint128 loanAmount,
+    ISuperToken _superToken,
+    int96 flowRate
+  ) external whenNotPaused onlyRole(Roles.BORROW_CALLER_ROLE) {
+    Types.Pool storage pool = pools[borrowerAuthorizedPools[to]];
+    
+    if (address(_superToken) != tokenToSuperToken[pools[to].parameters.UNDERLYING_TOKEN]) revert InvalidToken();
+
     if (pool.state.defaulted) {
       revert Errors.BP_POOL_DEFAULTED();
     }
@@ -571,6 +506,7 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     uint128 normalizedLoanAmount = loanAmount.scaleToWad(pool.parameters.TOKEN_DECIMALS);
     uint128 normalizedEstablishmentFee = normalizedLoanAmount.wadMul(pool.parameters.ESTABLISHMENT_FEE_RATE);
     uint128 normalizedBorrowedAmount = normalizedLoanAmount - normalizedEstablishmentFee;
+    uint128 repaymentAmount = normalizedEstablishmentFee;
     if (pool.state.normalizedBorrowedAmount + normalizedLoanAmount > pool.parameters.MAX_BORROWABLE_AMOUNT) {
       revert Errors.BP_BORROW_MAX_BORROWABLE_AMOUNT_EXCEEDED();
     }
@@ -581,7 +517,6 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
     // collectFees should be called before changing pool global state as fee collection depends on it
     pool.collectFees();
 
-    uint128 availableDeposits = pool.state.normalizedAvailableDeposits;
     if (normalizedLoanAmount > pool.state.normalizedAvailableDeposits) {
       revert Errors.BP_BORROW_OUT_OF_BOUND_AMOUNT();
     }
@@ -596,8 +531,10 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
           .getBondsIssuanceParametersForTick(currentInterestRate, remainingAmount);
         pool.addBondsToTick(currentInterestRate, bondsPurchasedQuantity, normalizedUsedAmountForPurchase);
         remainingAmount -= normalizedUsedAmountForPurchase;
+        repaymentAmount += bondsPurchasedQuantity.wadMul(PoolLogic.getTickBondPrice(currentInterestRate, uint128(0)));
       }
     }
+
     if (remainingAmount != 0) {
       revert Errors.BP_BORROW_UNSUFFICIENT_BORROWABLE_AMOUNT_WITHIN_BRACKETS();
     }
@@ -608,6 +545,13 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       emit FurtherBorrow(msg.sender, normalizedBorrowedAmount, normalizedEstablishmentFee);
     }
 
+    {
+      uint128 flowTotal = uint128(uint96(flowRate)) * pool.state.currentMaturity;
+      if (repaymentAmount > flowTotal) {
+        revert Errors.BP_FLOW_NOT_ENOUGH();
+      }
+    }
+
     protocolFees[msg.sender] += normalizedEstablishmentFee;
     pool.state.normalizedBorrowedAmount += normalizedLoanAmount;
     pool.parameters.YIELD_PROVIDER.withdraw(
@@ -615,7 +559,8 @@ contract BorrowerPools is PoolsController, IBorrowerPools {
       normalizedBorrowedAmount.scaleFromWad(pool.parameters.TOKEN_DECIMALS),
       to
     );
-  } 
+  }
+
 
   /**
    * @notice Repays a currently outstanding bonds of the given pool.

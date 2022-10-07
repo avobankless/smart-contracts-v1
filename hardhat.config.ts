@@ -29,6 +29,9 @@ const config: HardhatUserConfig = {
         version: '0.5.0',
       },
       {
+        version: '0.8.16',
+      },
+      {
         version: '0.8.9',
         settings: {
           optimizer: {
@@ -231,6 +234,7 @@ const config: HardhatUserConfig = {
         : undefined,
       saveDeployments: true,
       tags: ['test', 'local'],
+      // allowUnlimitedContractSize: true,
     },
     localhost: {
       url: node_url('localhost'),
@@ -312,6 +316,11 @@ const config: HardhatUserConfig = {
   },
   dodoc: {
     include: ['IBorrowerPools', 'IPoolsController', 'IPositionManager'],
+  },
+  verify: {
+    etherscan: {
+      apiKey: process.env.ETHERSCAN_KEY,
+    },
   },
 };
 

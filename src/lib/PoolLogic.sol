@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -210,7 +210,7 @@ library PoolLogic {
   /**
    * @dev Computes the quantity of bonds purchased, and the equivalent adjusted deposit amount used for the issuance
    **/
-  function getBondsIssuanceParametersForTick(
+function getBondsIssuanceParametersForTick(
     Types.Pool storage pool,
     uint128 rate,
     uint128 normalizedRemainingAmount
@@ -230,6 +230,61 @@ library PoolLogic {
     } else {
       normalizedUsedAmount = tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) + tick.accruedFees;
       tick.accruedFees = 0;
+    }
+    uint128 bondsPurchasePrice = getTickBondPrice(
+      rate,
+      pool.state.currentMaturity == 0
+        ? pool.parameters.LOAN_DURATION
+        : pool.state.currentMaturity - uint128(block.timestamp)
+    );
+    bondsPurchasedQuantity = normalizedUsedAmount.wadDiv(bondsPurchasePrice);
+  }
+
+  function getBondsIssuanceParametersForTickView(
+    Types.Pool storage pool,
+    uint128 rate,
+    uint128 normalizedRemainingAmount
+  ) internal view returns (uint128 bondsPurchasedQuantity, uint128 normalizedUsedAmount) {
+    Types.Tick storage tick = pool.ticks[rate];
+
+    if (tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) >= normalizedRemainingAmount) {
+      normalizedUsedAmount = normalizedRemainingAmount;
+    } else if (
+      tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) + tick.accruedFees >=
+      normalizedRemainingAmount
+    ) {
+      normalizedUsedAmount = normalizedRemainingAmount;
+    } else {
+      normalizedUsedAmount = tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) + tick.accruedFees;
+    }
+    uint128 bondsPurchasePrice = getTickBondPrice(
+      rate,
+      pool.state.currentMaturity == 0
+        ? pool.parameters.LOAN_DURATION
+        : pool.state.currentMaturity - uint128(block.timestamp)
+    );
+    bondsPurchasedQuantity = normalizedUsedAmount.wadDiv(bondsPurchasePrice);
+  }
+
+  /**
+   * @dev Computes the quantity of bonds that would be purchased.
+   **/
+function calculateBondIssuanceForTick(
+    Types.Pool storage pool,
+    uint128 rate,
+    uint128 normalizedRemainingAmount
+  ) public view returns (uint128 bondsPurchasedQuantity, uint128 normalizedUsedAmount) {
+    Types.Tick storage tick = pool.ticks[rate];
+
+    if (tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) >= normalizedRemainingAmount) {
+      normalizedUsedAmount = normalizedRemainingAmount;
+    } else if (
+      tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) + tick.accruedFees >=
+      normalizedRemainingAmount
+    ) {
+      normalizedUsedAmount = normalizedRemainingAmount;
+    } else {
+      normalizedUsedAmount = tick.adjustedRemainingAmount.wadRayMul(tick.atlendisLiquidityRatio) + tick.accruedFees;
     }
     uint128 bondsPurchasePrice = getTickBondPrice(
       rate,
@@ -637,7 +692,13 @@ library PoolLogic {
     }
   }
 
-  function getTickBondPrice(uint128 rate, uint128 loanDuration) public view returns (uint128 price) {
+  /** 
+    * @notice Calculates the proce per bond accordingly to rate and loanDuration 
+    * @param rate The rate of the loan
+    * @param loanDuration The duration of the loan
+    * @return price The price per bond
+    **/
+  function getTickBondPrice(uint128 rate, uint128 loanDuration) public pure returns (uint128 price) {
     price = uint128(WAD).wadDiv(uint128(WAD + (uint256(rate) * uint256(loanDuration)) / uint256(SECONDS_PER_YEAR)));
   }
 
@@ -654,6 +715,32 @@ library PoolLogic {
     underlyingToken.safeTransferFrom(from, address(this), scaledAmount);
 
     yieldProvider.deposit(scaledAmount);
-
   }
+
+  /**
+    * @notice Get repaymentAmount for a given loanAmount
+    * @param loanAmount The total amount of the loan
+    * @return repaymentAmount The total amount to be repaid 
+  **/
+  function _getRepaymentAmount(Types.Pool storage pool, uint128 loanAmount) external view returns (uint128 repaymentAmount) {
+
+    uint128 normalizedLoanAmount = loanAmount.scaleToWad(pool.parameters.TOKEN_DECIMALS);
+    uint128 normalizedEstablishmentFee = normalizedLoanAmount.wadMul(pool.parameters.ESTABLISHMENT_FEE_RATE);
+    repaymentAmount = normalizedEstablishmentFee;
+
+    uint128 remainingAmount = normalizedLoanAmount;
+    uint128 currentInterestRate = pool.state.lowerInterestRate - pool.parameters.RATE_SPACING;
+
+    while (remainingAmount > 0 && currentInterestRate < pool.parameters.MAX_RATE) {
+      currentInterestRate += pool.parameters.RATE_SPACING;
+      if (pool.ticks[currentInterestRate].adjustedRemainingAmount > 0) {
+        (uint128 bondsPurchasedQuantity, uint128 normalizedUsedAmountForPurchase) = pool
+          .getBondsIssuanceParametersForTickView(currentInterestRate, remainingAmount);
+        remainingAmount -= normalizedUsedAmountForPurchase;
+        repaymentAmount += bondsPurchasedQuantity.wadMul(getTickBondPrice(currentInterestRate, uint128(0)));
+      }
+    }
+  }
+
+
 }

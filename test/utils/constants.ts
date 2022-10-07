@@ -32,6 +32,9 @@ export const FIRST_TOKEN_ID = 1;
 export const ONE_HOUR = 3600;
 export const secondsPerYear = 365 * 24 * 60 * 60;
 export const GOVERNANCE_ROLE = keccak256(toUtf8Bytes('GOVERNANCE_ROLE'));
+export const BORROWER_CALLER_ROLE = keccak256(
+  toUtf8Bytes('BORROW_CALLER_ROLE')
+);
 export const POSITION_ROLE = keccak256(toUtf8Bytes('POSITION_ROLE'));
 export const minPenalty = parseEther('100');
 export const minStreamTime = 604800; // 1 week

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 import "../lib/Types.sol";
 
@@ -78,6 +78,13 @@ interface IPoolsController {
    * @param to The address receiving the fees
    **/
   event ClaimProtocolFees(address ownerAddress, uint128 normalizedAmount, address to);
+
+  /**
+    * @notice Emitted after governance sets the super token address for a regular token.
+    * @param token The regular token address
+    * @param superToken The super token address
+   */
+  event SetTokenToSuperToken(address token, address superToken);
 
   // VIEW METHODS
 

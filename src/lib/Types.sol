@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
@@ -55,7 +55,6 @@ library Types {
     bool active;
     bool defaulted;
     bool closed;
-    bool superfluidStream;
     uint128 currentMaturity;
     uint128 bondsIssuedQuantity;
     uint128 normalizedBorrowedAmount;

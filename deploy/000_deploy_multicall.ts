@@ -24,4 +24,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   log('Multicall2library: ' + Multicall2.address);
 };
 export default func;
-func.tags = ['All', 'multicall2', 'test', 'local'];
+func.tags = ['All', 'multicall2', 'local'];

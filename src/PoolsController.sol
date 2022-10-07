@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <=0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -29,6 +29,9 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
 
   // protocol fees per pool
   mapping(address => uint128) internal protocolFees;
+
+  // accepted superTokens to stream
+  mapping(address => address) public tokenToSuperToken;
 
   function _initialize() internal onlyInitializing {
     // both initializers below are called to comply with OpenZeppelin's
@@ -432,5 +435,19 @@ contract PoolsController is AccessControlUpgradeable, PausableUpgradeable, IPool
     pools[ownerAddress].parameters.REPAYMENT_FEE_RATE = repaymentFeeRate;
 
     emit SetRepaymentFeeRate(repaymentFeeRate, ownerAddress);
+  }
+
+  /**
+   * @notice Set the corresponding superToken address for the regular token address
+   **/
+  function setTokenToSuperToken(address token, address superToken) external onlyRole(Roles.GOVERNANCE_ROLE) {
+    if (token == address(0)) {
+      revert Errors.PC_ZERO_ADDRESS();
+    }
+    if (superToken == address(0)) {
+      revert Errors.PC_ZERO_ADDRESS();
+    }
+    tokenToSuperToken[token] = superToken;
+    emit SetTokenToSuperToken(token, superToken);
   }
 }
